@@ -1,0 +1,886 @@
+---
+title: "DO ART NCD Tables (Descriptive Statistics and Regression Analysis)"
+author: ""
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  word_document:
+    reference_docx: word_styles.docx
+
+---
+
+```{r setup, include = F, echo = F, warning = F, message = F}
+
+rm(list=ls())
+
+# Load packages
+
+library(dplyr)
+library(data.table)
+library(ggplot2)
+
+# Table formatting packages
+library(janitor)
+library(tables)
+library(flextable)
+
+# Load data
+
+dir <- "C:/Users/msahu/Documents/Other_Research/DO_ART_NCD/"
+in_dir <- paste0(dir, "0_data/3_cleaned_data/")
+
+ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds"))
+
+# WARNING that chunks build on each other! Can't run individually
+
+```
+
+# Tables 1-5: Descriptive statistics
+
+&nbsp;
+
+## Table 1: Descriptive statistics of cardiovascular risk in the DO ART study, by trial arm (N = 1315)
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+# Set up --------------------------------------------------------------------------
+
+headings <- data.frame(
+  section = c("A", "B", "C", "D"),
+  title = c( "", 
+             "ii) Cardiovascular Risk",
+             "iii) Change in cardiovascular risk",
+             "iv) Lifestyle and other risk")
+)
+
+# A) Demographics
+A_vars = c(
+  "age_cat", 
+  "genderR")
+A_var_labels = c(
+  "Age", 
+  "Gender")
+
+# B) Cardiovascular risk
+B_vars = c(
+  "who_cvd_risk_exit",
+  "bmi_cat_exit", 
+  "bp_cat_exit", 
+  "a1c_cat_exit", 
+  "total_cholesterol_exit" )
+B_var_labels = c(
+    "10-year CVD risk score \n [Endline]",
+   "BMI (kg/m^2) \n [Endline]",
+   "Blood pressure \n [Endline]",
+   "Hemoglobin A1C (%) \n [Endline]",
+   "Total cholesterol (mg/dL) \n [Endline]" )
+
+# C) Change in CVD risk
+C_vars = c(  
+  "bmi_diff",
+  "sbp_diff")
+C_var_labels = c(
+  "Change in BMI, baseline to endline  \n [AHRI only]",
+  "Change in Systolic Blood pressure, baseline to endline  \n [AHRI only]" )
+
+# D) Lifestyle and Other Risk
+D_vars = c(  
+  "smoking_cat",
+  "exer_cat",
+  "veg_cat",
+  "stroke_cat")
+D_var_labels = c(
+  "Smoking Status  \n [Baseline]",
+  "Days of exercise (per week) \n [Endline]",
+  "Vegetable intake \n [Endline]",
+   "Prior stroke or heart attack  \n [Endline]")
+
+table_vars <- data.frame(
+  
+  var_name = c(A_vars, B_vars, C_vars, D_vars),
+
+  var_label = c(A_var_labels, B_var_labels, C_var_labels, D_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(A_vars) ~ "A",
+      var_name %in% c(B_vars) ~ "B",
+      var_name %in% c(C_vars) ~ "C",
+      var_name %in% c(D_vars) ~ "D")
+    )
+  
+# Descriptive Proportion Table ----------------------------------------------------
+
+freq_section = c("A", "B", "D")
+mean_section = "C"
+
+col_headings_freq <- c(
+  "Category",
+  "Clinic Arm \n N (%)", 
+  "Community Arm \n N (%)",
+  "Hybrid Arm \n N (%)",
+  "Total \n N (%)"
+  )
+
+col_headings_mean <- c(
+  "",
+  "Clinic Arm \n mean (SD)", 
+  "Community Arm \n mean (SD)",
+  "Hybrid Arm \n mean (SD)",
+  "Total \n mean (SD)"
+  )
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        clinic_arm = character(),
+        community_arm = character(),
+        hybrid_arm = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+    
+    if (i %in% c(freq_section)) {
+      
+    data = ncd_merged_subset
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), arm) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1,
+             clinic_arm = `Clinic arm`,
+             community_arm = `Community arm`,
+             hybrid_arm = `Hybrid arm`) %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+      
+    }
+    
+    else if (i %in% c(mean_section)) {
+      
+    data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+    temp1 <- data %>% 
+      group_by(arm) %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+                sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(value = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) %>% 
+      
+      # Format using Janitor package
+      t %>% as.data.frame() %>% row_to_names(1)
+    
+    
+    temp2 <- data %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+              sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(Total = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) 
+      
+    
+    temp <- cbind(temp1, temp2) %>% 
+      # Clean up headers
+      rename(clinic_arm = `Clinic arm`,
+             community_arm = `Community arm`,
+             hybrid_arm = `Hybrid arm`) %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      mutate(category = "") %>% 
+      select(variable, category, everything())
+
+    }
+   
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+   
+  delete_part(part = "header") %>%
+  
+  add_header_row(values =
+                   if (i %in% c(freq_section)) { c(headings[headings$section == i, "title"], col_headings_freq)}
+                   else if  (i %in% c(mean_section)) { c(headings[headings$section == i, "title"], col_headings_mean)}
+                  )  %>%     
+ align(i = 1, part = "header", align = "center") %>%
+ merge_v(j = "variable") %>%
+ width(width = 1.65) %>%
+ theme_vanilla()
+
+flextable_to_rmd(ft)  
+
+rm(temp, temp1, temp2)  
+}
+
+```
+
+&nbsp;
+
+## Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by age (N = 1315)
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+# Set up -------------------------------------------------------------------------
+
+# A) Demographics
+A_vars = c(
+  "genderR")
+A_var_labels = c(
+  "Gender")
+
+# Other sections are the same
+
+table_vars <- data.frame(
+  
+  var_name = c(A_vars, B_vars, C_vars, D_vars),
+
+  var_label = c(A_var_labels, B_var_labels, C_var_labels, D_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(A_vars) ~ "A",
+      var_name %in% c(B_vars) ~ "B",
+      var_name %in% c(C_vars) ~ "C",
+      var_name %in% c(D_vars) ~ "D")
+    )
+  
+# Descriptive Proportion Table ----------------------------------------------------
+
+freq_section = c("A", "B", "D")
+mean_section = "C"
+
+col_headings_freq <- c(
+  "Category",
+  "Age 18-39 \n N (%)", 
+  "Age 40-59 \n N (%)",
+  "Age 60+ \n N (%)",
+  "Total \n N (%)"
+  )
+
+col_headings_mean <- c(
+  "",
+  "Age 18-39 \n mean (SD)", 
+  "Age 40-59 \n mean (SD)",
+  "Age 60+ \n mean (SD)",
+  "Total \n mean (SD)"
+  )
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        age18_39 = character(),
+        age40_59 = character(),
+        age60plus = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+    
+    if (i %in% c(freq_section)) {
+      
+    data = ncd_merged_subset
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), age_cat) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1,
+             age18_39 = `18-39`,
+             age40_59 = `40-59`,
+             age60plus = `60+`) %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+      
+    }
+    
+    else if (i %in% c(mean_section)) {
+      
+    data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+    temp1 <- data %>% 
+      group_by(age_cat) %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+                sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(value = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) %>% 
+      
+      # Format using Janitor package
+      t %>% as.data.frame() %>% row_to_names(1)
+    
+    
+    temp2 <- data %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+              sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(Total = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) 
+      
+    
+    temp <- cbind(temp1, temp2) %>% 
+      # Clean up headers
+      rename(age18_39 = `18-39`,
+             age40_59 = `40-59`,
+             age60plus = `60+`) %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      mutate(category = "") %>% 
+      select(variable, category, everything())
+
+    }
+   
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+   
+  delete_part(part = "header") %>%
+  
+  add_header_row(values =
+                   if (i %in% c(freq_section)) { c(headings[headings$section == i, "title"], col_headings_freq)}
+                   else if  (i %in% c(mean_section)) { c(headings[headings$section == i, "title"], col_headings_mean)}
+                  )  %>%     
+ align(i = 1, part = "header", align = "center") %>%
+ merge_v(j = "variable") %>%
+ width(width = 1.65) %>%
+ theme_vanilla()
+
+flextable_to_rmd(ft)  
+
+rm(temp, temp1, temp2)  
+}
+
+```
+
+&nbsp;
+
+## Table 3: Descriptive statistics of cardiovascular risk in the DO ART study, by gender (N = 1315)
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+# Set up -------------------------------------------------------------------------
+
+# A) Demographics
+A_vars = c(
+  "age_cat")
+A_var_labels = c(
+  "Age")
+
+# Other sections are the same
+
+table_vars <- data.frame(
+  
+  var_name = c(A_vars, B_vars, C_vars, D_vars),
+
+  var_label = c(A_var_labels, B_var_labels, C_var_labels, D_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(A_vars) ~ "A",
+      var_name %in% c(B_vars) ~ "B",
+      var_name %in% c(C_vars) ~ "C",
+      var_name %in% c(D_vars) ~ "D")
+    )
+  
+# Descriptive Proportion Table ----------------------------------------------------
+
+freq_section = c("A", "B", "D")
+mean_section = "C"
+
+col_headings_freq <- c(
+  "Category",
+  "Women \n N (%)", 
+  "Men \n N (%)",
+  "Total \n N (%)"
+  )
+
+col_headings_mean <- c(
+  "",
+  "Women \n mean (SD)", 
+  "Men \n mean (SD)",
+  "Total \n mean (SD)"
+  )
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        Women = character(),
+        Men = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+    
+    if (i %in% c(freq_section)) {
+      
+    data = ncd_merged_subset
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), genderR) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1) %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+      
+    }
+    
+    else if (i %in% c(mean_section)) {
+      
+    data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+    temp1 <- data %>% 
+      group_by(genderR) %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+                sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(value = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) %>% 
+      
+      # Format using Janitor package
+      t %>% as.data.frame() %>% row_to_names(1)
+    
+    
+    temp2 <- data %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+              sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(Total = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) 
+      
+    
+    temp <- cbind(temp1, temp2) %>% 
+      # Clean up headers
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      mutate(category = "") %>% 
+      select(variable, category, everything())
+
+    }
+   
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+   
+  delete_part(part = "header") %>%
+  
+  add_header_row(values =
+                   if (i %in% c(freq_section)) { c(headings[headings$section == i, "title"], col_headings_freq)}
+                   else if  (i %in% c(mean_section)) { c(headings[headings$section == i, "title"], col_headings_mean)}
+                  )  %>%     
+ align(i = 1, part = "header", align = "center") %>%
+ merge_v(j = "variable") %>%
+ width(width = 1.65) %>%
+ theme_vanilla()
+
+flextable_to_rmd(ft)  
+
+rm(temp, temp1, temp2)  
+}
+```
+
+&nbsp;
+
+
+## Table 4: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315)
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+# A) Demographics
+A_vars = c(
+  "age_cat",
+  "genderR")
+A_var_labels = c(
+  "Age",
+  "Gender")
+
+
+# Other sections are the same
+
+table_vars <- data.frame(
+  
+  var_name = c(A_vars, B_vars, C_vars, D_vars),
+
+  var_label = c(A_var_labels, B_var_labels, C_var_labels, D_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(A_vars) ~ "A",
+      var_name %in% c(B_vars) ~ "B",
+      var_name %in% c(C_vars) ~ "C",
+      var_name %in% c(D_vars) ~ "D")
+    )
+  
+# Descriptive Proportion Table ----------------------------------------------------
+
+freq_section = c("A", "B", "D")
+mean_section = "C"
+
+col_headings_freq <- c(
+  "Category",
+  "Midlands KZN SA \n N (%)", 
+  "Northern KZN SA \n N (%)",
+  "SW Uganda \n N (%)",
+  "Total \n N (%)"
+  )
+
+col_headings_mean <- c(
+  "",
+  "Midlands KZN SA \n mean (SD)", 
+  "Northern KZN SA \n mean (SD)",
+  "SW Uganda \n mean (SD)",
+  "Total \n mean (SD)"
+  )
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        midlands_kzn = character(),
+        northern_kzn = character(),
+        sw_uganda = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+    
+    if (i %in% c(freq_section)) {
+      
+    data = ncd_merged_subset
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), site) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1,
+             midlands_kzn = "HSRC",
+             northern_kzn = "AHRI",
+             sw_uganda = "ICOBI") %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+      
+    }
+    
+    else if (i %in% c(mean_section)) {
+      
+    data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+    temp1 <- data %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+                sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(value = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) %>% 
+      
+      # Format using Janitor package
+      t %>% as.data.frame() 
+    
+    
+    temp2 <- data %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+              sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(Total = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) 
+      
+    
+    temp <- cbind(temp1, temp2) %>% 
+      # Clean up headers
+      rename(northern_kzn = 1,
+             Total = 2) %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      mutate(category = "",
+             midlands_kzn = "",
+             sw_uganda = "") %>% 
+      select(variable, category, midlands_kzn, northern_kzn, sw_uganda, everything())
+
+    }
+   
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+   
+  delete_part(part = "header") %>%
+  
+  add_header_row(values =
+                   if (i %in% c(freq_section)) { c(headings[headings$section == i, "title"], col_headings_freq)}
+                   else if  (i %in% c(mean_section)) { c(headings[headings$section == i, "title"], col_headings_mean)}
+                  )  %>%     
+ align(i = 1, part = "header", align = "center") %>%
+ merge_v(j = "variable") %>%
+ width(width = 1.65) %>%
+ theme_vanilla()
+
+flextable_to_rmd(ft)  
+
+rm(temp, temp1, temp2)  
+}
+```
+
+&nbsp;
+
+## Table 5: Descriptive statistics of cardiovascular risk in the DO ART study, by *endline* viral suppression status (N = 1315)
+
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+# Sections are the same
+  
+# Descriptive Proportion Table ----------------------------------------------------
+
+freq_section = c("A", "B", "D")
+mean_section = "C"
+
+col_headings_freq <- c(
+  "Category",
+  "Virally suppressed \n N (%)", 
+  "Not virally suppressed \n N (%)",
+  "Unknown \n N (%)",
+  "Total \n N (%)"
+  )
+
+col_headings_mean <- c(
+  "",
+  "Virally suppressed \n mean (SD)", 
+  "Not virally suppressed \n mean (SD)",
+  "Unknown \n mean (SD)",
+  "Total \n mean (SD)"
+  )
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        vs = character(),
+        not_vs = character(),
+        unknown = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+    
+    if (i %in% c(freq_section)) {
+      
+    data = ncd_merged_subset
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), exit_viral_load_suppressedR) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1,
+             vs = "Yes",
+             not_vs = "No",
+             unknown = "Unknown") %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+      
+    }
+    
+    else if (i %in% c(mean_section)) {
+      
+    data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+    temp1 <- data %>% 
+      group_by(exit_viral_load_suppressedR) %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+                sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(value = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) %>% 
+      
+      # Format using Janitor package
+      t %>% as.data.frame() %>% row_to_names(1)
+    
+    
+    temp2 <- data %>% 
+      summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
+              sd = round(sd(!!sym(v), na.rm = T), 1)) %>% 
+      mutate(Total = paste0(mean, " (", sd, ")")) %>% 
+      select(-c(mean, sd)) 
+      
+    
+    temp <- cbind(temp1, temp2) %>% 
+      # Clean up headers
+      rename(vs = "Yes",
+             not_vs = "No",
+             unknown = "Unknown") %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      mutate(category = "") %>% 
+      select(variable, category, everything())
+
+    }
+   
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+   
+  delete_part(part = "header") %>%
+  
+  add_header_row(values =
+                   if (i %in% c(freq_section)) { c(headings[headings$section == i, "title"], col_headings_freq)}
+                   else if  (i %in% c(mean_section)) { c(headings[headings$section == i, "title"], col_headings_mean)}
+                  )  %>%     
+ align(i = 1, part = "header", align = "center") %>%
+ merge_v(j = "variable") %>%
+ width(width = 1.65) %>%
+ theme_vanilla()
+
+flextable_to_rmd(ft)  
+
+rm(temp, temp1, temp2)  
+}
+```
+
+### Page Break
+
+# Table 6: Analysis
+
+&nbsp;
+
+## Table 6. Risk of elevated cardiovascular risk for community delivery of HIV care compared with clinic-based care (N = 873).
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+ncd_noHybrid <- ncd_merged_subset %>% filter(arm!= "Hybrid arm")
+round_digits = 2
+
+regression_vars <- data.frame(
+  
+  var_name = c(
+    
+    "who_cvd_hi_exit", # 1
+    "overwt_exit", # 2 
+    "bp_hi_exit", # 3
+    "a1c_hi_exit", #4
+    "total_cholesterol_hi_exit"),
+
+  var_label = c(
+    
+    "Elevated overall 10-year CVD risk", 
+    "Overweight (BMI >= 25)",
+    "Elevated BP",
+    "Elevated blood sugar (a1c >= 5.7)",
+    "Elevated lipids (total cholesterol >= 200)"))
+  
+
+regressionDF <- data.frame(
+        variable = character(),
+        rr = numeric(),
+        rr_ci = character(),
+        rr_p = numeric(),
+        adj.rr = character(), # FIX LATER
+        adj.rr_ci = character(), # FIX LATER
+        adj.rr_p = character() # FIX LATER
+    )
+ 
+for (v in unique(regression_vars$var_name)) {
+  
+  # Adjusted for site only
+  m <- glm(get(v) ~ arm + site, data = ncd_noHybrid,
+            family = quasibinomial(link = "log"))
+  m.rr <- exp(coef(m)[[2]])
+  m.rr_ci <- exp(confint(m)["armCommunity arm", ])
+  m.p <- coef(summary(m))["armCommunity arm",4]
+
+  adj.rr = "--"
+  adj.rr_ci = "--"
+  adj.p = "--"
+  
+  temp_row <- c(v, 
+                as.numeric(round(m.rr, round_digits)), 
+                paste0("(",
+                       as.numeric(round(m.rr_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(m.rr_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(m.p, round_digits)),
+                adj.rr, adj.rr_ci, adj.p)
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+}
+
+#  Adjust for site, age, gender smoking (OK TO HAVE AGE AS CATEGORICAL??)
+#  adj.m <- glm(get(v) ~ arm + site + age_cat + genderR + smoking_status, 
+#              data = ncd_noHybrid,
+#              family = quasibinomial(link = "log"))
+#  adj.rr <- exp(coef(adj.m)[[2]])
+#  adj.rr_ci <- exp(confint(adj.m)["armCommunity arm", ])
+#  adj.p <- coef(summary(adj.m))["armCommunity arm",4] 
+  
+names(regressionDF) =
+  c("Variable",
+    "Relative Risk",
+    "95% CI",
+    "p-value",
+    "Adj. Relative Risk",
+    "Adj. 95% CI",
+    "Adj. p-value")
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A")
+ft
+```
+
