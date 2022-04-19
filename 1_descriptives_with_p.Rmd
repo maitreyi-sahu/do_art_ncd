@@ -10,6 +10,38 @@ output:
 
 ```{r setup, include = F, echo = F, warning = F, message = F}
 
+# -------------------------------------------------------------------------
+
+
+# Lines that change to add p-value
+# 
+# 	- Col_headings_freq
+# 	- Col_headings_mean
+# 
+# 	- Table DF
+# 	    ,  p_value = character()
+# 		
+# 	- Insert line "Fisher's Exact Test"
+# 	   # Fisher's Exact Test with simulated p-value
+# 	    fisher.p.value = fisher.test(data[[v]], data$arm, simulate.p.value = T)$p.value
+# 	    
+# 	
+# 	- Insert line 
+# 	    %>%  mutate(p_value = round(fisher.p.value, round_p))
+
+# 	- Insert line "ANOVA p-value"
+# 	# Anova to compare means
+# 	    anova.p.value = summary(aov(get(v) ~ arm, data = data))[[1]][["Pr(>F)"]][1]
+# 	     
+# 	 %>% mutate(p_value = round(anova.p.value, round_p))
+# 	- Insert line 
+# 	- In flextable, add:
+# 		merge_v(j = "p_value")  %>%
+#   -  width(width = 1.2) %>%
+# 	      
+# -------------------------------------------------------------------------------------
+
+
 rm(list=ls())
 
 # Load packages
@@ -32,17 +64,25 @@ ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds"))
 
 # WARNING that chunks build on each other! Can't run individually
 
+      
 ```
 
 # Tables 1-5: Descriptive statistics
 
 &nbsp;
 
+P-values are assessed as follows: 
+
++ For categorical variables, Fisher's Exact Test with simulated p-value (2000 replicates)
++ For continuous variables, Anova to assess difference in means
+
 ## Table 1: Descriptive statistics of cardiovascular risk in the DO ART study, by trial arm (N = 1315)
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
 # Set up --------------------------------------------------------------------------
+
+round_p = 3
 
 headings <- data.frame(
   section = c("A", "B", "C", "D"),
@@ -77,10 +117,12 @@ B_var_labels = c(
 # C) Change in CVD risk
 C_vars = c(  
   "bmi_diff",
-  "sbp_diff")
+  "sbp_diff"
+  )
 C_var_labels = c(
   "Change in BMI, baseline to endline  \n [AHRI only]",
-  "Change in Systolic Blood pressure, baseline to endline  \n [AHRI only]" )
+  "Change in Systolic Blood pressure, baseline to endline  \n [AHRI only]" 
+  )
 
 # D) Lifestyle and Other Risk
 D_vars = c(  
@@ -119,7 +161,8 @@ col_headings_freq <- c(
   "Clinic Arm \n N (%)", 
   "Community Arm \n N (%)",
   "Hybrid Arm \n N (%)",
-  "Total \n N (%)"
+  "Total \n N (%)",
+  "p-value"
   )
 
 col_headings_mean <- c(
@@ -127,7 +170,8 @@ col_headings_mean <- c(
   "Clinic Arm \n mean (SD)", 
   "Community Arm \n mean (SD)",
   "Hybrid Arm \n mean (SD)",
-  "Total \n mean (SD)"
+  "Total \n mean (SD)",
+  "p-value"
   )
 
 for (i in unique(headings$section)) {
@@ -140,14 +184,17 @@ for (i in unique(headings$section)) {
         clinic_arm = character(),
         community_arm = character(),
         hybrid_arm = character(),
-        Total = character()
-    )
+        Total = character(),
+        p_value = character() )
   
   for (v in unique(table_subset$var_name)) {
     
     if (i %in% c(freq_section)) {
       
     data = ncd_merged_subset
+    
+    # Fisher's Exact Test with simulated p-value
+    fisher.p.value = fisher.test(data[[v]], data$arm, simulate.p.value = T)$p.value
     
     temp <- data %>% 
       
@@ -165,7 +212,8 @@ for (i in unique(headings$section)) {
              community_arm = `Community arm`,
              hybrid_arm = `Hybrid arm`) %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
-      select(variable, everything())
+      select(variable, everything()) %>% 
+      mutate(p_value = round(fisher.p.value, round_p))
       
     }
     
@@ -173,6 +221,9 @@ for (i in unique(headings$section)) {
       
     data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
     
+    # Anova to compare means
+    anova.p.value = summary(aov(get(v) ~ arm, data = data))[[1]][["Pr(>F)"]][1]
+ 
     temp1 <- data %>% 
       group_by(arm) %>% 
       summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
@@ -198,7 +249,8 @@ for (i in unique(headings$section)) {
              hybrid_arm = `Hybrid arm`) %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
       mutate(category = "") %>% 
-      select(variable, category, everything())
+      select(variable, category, everything())  %>% 
+      mutate(p_value = round(anova.p.value, round_p))
 
     }
    
@@ -218,7 +270,8 @@ ft <- flextable(tableDF) %>%
                   )  %>%     
  align(i = 1, part = "header", align = "center") %>%
  merge_v(j = "variable") %>%
- width(width = 1.65) %>%
+ merge_v(j = "p_value") %>%
+ width(width = 1.25) %>%
  theme_vanilla()
 
 flextable_to_rmd(ft)  
@@ -268,7 +321,8 @@ col_headings_freq <- c(
   "Age 18-39 \n N (%)", 
   "Age 40-59 \n N (%)",
   "Age 60+ \n N (%)",
-  "Total \n N (%)"
+  "Total \n N (%)",
+  "p-value"
   )
 
 col_headings_mean <- c(
@@ -276,7 +330,8 @@ col_headings_mean <- c(
   "Age 18-39 \n mean (SD)", 
   "Age 40-59 \n mean (SD)",
   "Age 60+ \n mean (SD)",
-  "Total \n mean (SD)"
+  "Total \n mean (SD)",
+  "p-value"
   )
 
 for (i in unique(headings$section)) {
@@ -289,7 +344,8 @@ for (i in unique(headings$section)) {
         age18_39 = character(),
         age40_59 = character(),
         age60plus = character(),
-        Total = character()
+        Total = character(),
+        p_value = character()
     )
   
   for (v in unique(table_subset$var_name)) {
@@ -297,6 +353,9 @@ for (i in unique(headings$section)) {
     if (i %in% c(freq_section)) {
       
     data = ncd_merged_subset
+    
+    # Fisher's Exact Test with simulated p-value
+    fisher.p.value = fisher.test(data[[v]], data$arm, simulate.p.value = T)$p.value
     
     temp <- data %>% 
       
@@ -314,7 +373,8 @@ for (i in unique(headings$section)) {
              age40_59 = `40-59`,
              age60plus = `60+`) %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
-      select(variable, everything())
+      select(variable, everything()) %>% 
+      mutate(p_value = round(fisher.p.value, round_p))
       
     }
     
@@ -322,6 +382,9 @@ for (i in unique(headings$section)) {
       
     data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
     
+    # Anova to compare means
+    anova.p.value = summary(aov(get(v) ~ arm, data = data))[[1]][["Pr(>F)"]][1]
+     
     temp1 <- data %>% 
       group_by(age_cat) %>% 
       summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
@@ -347,7 +410,8 @@ for (i in unique(headings$section)) {
              age60plus = `60+`) %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
       mutate(category = "") %>% 
-      select(variable, category, everything())
+      select(variable, category, everything()) %>% 
+      mutate(p_value = round(anova.p.value, round_p))
 
     }
    
@@ -367,7 +431,8 @@ ft <- flextable(tableDF) %>%
                   )  %>%     
  align(i = 1, part = "header", align = "center") %>%
  merge_v(j = "variable") %>%
- width(width = 1.65) %>%
+ merge_v(j = "p_value") %>%
+ width(width = 1.25) %>%
  theme_vanilla()
 
 flextable_to_rmd(ft)  
@@ -416,14 +481,16 @@ col_headings_freq <- c(
   "Category",
   "Women \n N (%)", 
   "Men \n N (%)",
-  "Total \n N (%)"
+  "Total \n N (%)",
+  "p-value"
   )
 
 col_headings_mean <- c(
   "",
   "Women \n mean (SD)", 
   "Men \n mean (SD)",
-  "Total \n mean (SD)"
+  "Total \n mean (SD)",
+  "p-value"
   )
 
 for (i in unique(headings$section)) {
@@ -435,7 +502,8 @@ for (i in unique(headings$section)) {
         category = character(),
         Women = character(),
         Men = character(),
-        Total = character()
+        Total = character(),
+        p_value = character()
     )
   
   for (v in unique(table_subset$var_name)) {
@@ -443,6 +511,9 @@ for (i in unique(headings$section)) {
     if (i %in% c(freq_section)) {
       
     data = ncd_merged_subset
+    
+  	# Fisher's Exact Test with simulated p-value
+    fisher.p.value = fisher.test(data[[v]], data$arm, simulate.p.value = T)$p.value
     
     temp <- data %>% 
       
@@ -457,13 +528,17 @@ for (i in unique(headings$section)) {
       # Clean up headers
       rename(category = 1) %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
-      select(variable, everything())
+      select(variable, everything()) %>%  
+      mutate(p_value = round(fisher.p.value, round_p))
       
     }
     
     else if (i %in% c(mean_section)) {
       
     data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+  	# Anova to compare means
+    anova.p.value = summary(aov(get(v) ~ arm, data = data))[[1]][["Pr(>F)"]][1]
     
     temp1 <- data %>% 
       group_by(genderR) %>% 
@@ -487,7 +562,8 @@ for (i in unique(headings$section)) {
       # Clean up headers
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
       mutate(category = "") %>% 
-      select(variable, category, everything())
+      select(variable, category, everything()) %>% 
+      mutate(p_value = round(anova.p.value, round_p))
 
     }
    
@@ -507,7 +583,8 @@ ft <- flextable(tableDF) %>%
                   )  %>%     
  align(i = 1, part = "header", align = "center") %>%
  merge_v(j = "variable") %>%
- width(width = 1.65) %>%
+ merge_v(j = "p_value") %>% 
+ width(width = 1.25) %>%
  theme_vanilla()
 
 flextable_to_rmd(ft)  
@@ -559,7 +636,8 @@ col_headings_freq <- c(
   "Midlands KZN SA \n N (%)", 
   "Northern KZN SA \n N (%)",
   "SW Uganda \n N (%)",
-  "Total \n N (%)"
+  "Total \n N (%)",
+  "p-value"
   )
 
 col_headings_mean <- c(
@@ -567,7 +645,8 @@ col_headings_mean <- c(
   "Midlands KZN SA \n mean (SD)", 
   "Northern KZN SA \n mean (SD)",
   "SW Uganda \n mean (SD)",
-  "Total \n mean (SD)"
+  "Total \n mean (SD)",
+  "p-value"
   )
 
 for (i in unique(headings$section)) {
@@ -580,7 +659,8 @@ for (i in unique(headings$section)) {
         midlands_kzn = character(),
         northern_kzn = character(),
         sw_uganda = character(),
-        Total = character()
+        Total = character(),
+        p_value = character()
     )
   
   for (v in unique(table_subset$var_name)) {
@@ -588,6 +668,10 @@ for (i in unique(headings$section)) {
     if (i %in% c(freq_section)) {
       
     data = ncd_merged_subset
+    
+  	# Fisher's Exact Test with simulated p-value
+    fisher.p.value = fisher.test(data[[v]], data$arm, simulate.p.value = T)$p.value
+    
     
     temp <- data %>% 
       
@@ -605,13 +689,18 @@ for (i in unique(headings$section)) {
              northern_kzn = "AHRI",
              sw_uganda = "ICOBI") %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
-      select(variable, everything())
+      select(variable, everything()) 	%>%  
+      mutate(p_value = round(fisher.p.value, round_p))
       
     }
     
     else if (i %in% c(mean_section)) {
       
     data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+  	# Anova to compare means
+    anova.p.value = summary(aov(get(v) ~ arm, data = data))[[1]][["Pr(>F)"]][1]
+
     
     temp1 <- data %>% 
       summarize(mean = round(mean(!!sym(v), na.rm = T), 1), 
@@ -638,7 +727,8 @@ for (i in unique(headings$section)) {
       mutate(category = "",
              midlands_kzn = "",
              sw_uganda = "") %>% 
-      select(variable, category, midlands_kzn, northern_kzn, sw_uganda, everything())
+      select(variable, category, midlands_kzn, northern_kzn, sw_uganda, everything()) %>% 
+      mutate(p_value = round(anova.p.value, round_p))
 
     }
    
@@ -658,7 +748,8 @@ ft <- flextable(tableDF) %>%
                   )  %>%     
  align(i = 1, part = "header", align = "center") %>%
  merge_v(j = "variable") %>%
- width(width = 1.65) %>%
+ merge_v(j = "p_value")  %>%
+ width(width = 1.25) %>%
  theme_vanilla()
 
 flextable_to_rmd(ft)  
@@ -686,7 +777,8 @@ col_headings_freq <- c(
   "Virally suppressed \n N (%)", 
   "Not virally suppressed \n N (%)",
   "Unknown \n N (%)",
-  "Total \n N (%)"
+  "Total \n N (%)",
+  "p-value"
   )
 
 col_headings_mean <- c(
@@ -694,7 +786,8 @@ col_headings_mean <- c(
   "Virally suppressed \n mean (SD)", 
   "Not virally suppressed \n mean (SD)",
   "Unknown \n mean (SD)",
-  "Total \n mean (SD)"
+  "Total \n mean (SD)",
+  "p-value"
   )
 
 for (i in unique(headings$section)) {
@@ -707,7 +800,8 @@ for (i in unique(headings$section)) {
         vs = character(),
         not_vs = character(),
         unknown = character(),
-        Total = character()
+        Total = character(),
+        p_value = character()
     )
   
   for (v in unique(table_subset$var_name)) {
@@ -715,6 +809,9 @@ for (i in unique(headings$section)) {
     if (i %in% c(freq_section)) {
       
     data = ncd_merged_subset
+    
+    # Fisher's Exact Test with simulated p-value
+    fisher.p.value = fisher.test(data[[v]], data$arm, simulate.p.value = T)$p.value
     
     temp <- data %>% 
       
@@ -732,13 +829,18 @@ for (i in unique(headings$section)) {
              not_vs = "No",
              unknown = "Unknown") %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
-      select(variable, everything())
+      select(variable, everything()) 	%>%  
+      mutate(p_value = round(fisher.p.value, round_p))
+
       
     }
     
     else if (i %in% c(mean_section)) {
       
     data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+  	# Anova to compare means
+    anova.p.value = summary(aov(get(v) ~ arm, data = data))[[1]][["Pr(>F)"]][1]
     
     temp1 <- data %>% 
       group_by(exit_viral_load_suppressedR) %>% 
@@ -765,7 +867,9 @@ for (i in unique(headings$section)) {
              unknown = "Unknown") %>% 
       mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
       mutate(category = "") %>% 
-      select(variable, category, everything())
+      select(variable, category, everything()) %>% 
+      mutate(p_value = round(anova.p.value, round_p))
+
 
     }
    
@@ -785,7 +889,8 @@ ft <- flextable(tableDF) %>%
                   )  %>%     
  align(i = 1, part = "header", align = "center") %>%
  merge_v(j = "variable") %>%
- width(width = 1.65) %>%
+ merge_v(j = "p_value")  %>%
+ width(width = 1.25) %>%
  theme_vanilla()
 
 flextable_to_rmd(ft)  
