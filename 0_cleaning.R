@@ -278,7 +278,12 @@ ncd_merged <- ncd_merged %>%
                            site == "HSRC" ~ "South Africa"),
          
          # Age
-         age_cat = factor(case_when(age >= 18 & age <30 ~ "18-29",
+         age_cat = factor(case_when(age >= 18 & age <40 ~ "18-39",
+                                   age >= 40 & age < 60 ~ "40-59", 
+                                   age >= 60 ~ "60+"),
+                         levels = c("18-39", "40-59", "60+")),
+        
+         age_catR = factor(case_when(age >= 18 & age <30 ~ "18-29",
                              age >= 30 & age < 45 ~ "30-44",        
                              age >= 45 & age < 60 ~ "45-59",
                              age >= 60 ~ "60+"),

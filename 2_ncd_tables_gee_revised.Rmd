@@ -518,6 +518,7 @@ ft
 ### Page Break
 
 ## Table 3: Poisson + linear regressions with VS as predictor, stratified by treatment arm; with interaction term for VS 
+&nbsp;
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
@@ -709,8 +710,8 @@ ft <- flextable(regressionDF) %>%
                             paste0("Community follow-up, Adjusted \n (N = ", N_community, ")"), 
                              paste0("Interaction \n (N = ", N_community + N_clinic, ")")), 
                  top = T, colwidths = c(1, 3, 3, 1)) %>% 
-  width(width = .94) %>%
-  width(j = 1, width = 1.6) %>%
+  width(width = .98) %>%
+  width(j = 1, width = 2.2) %>%
   theme_vanilla()  %>% 
   vline(j = c(1, 4, 7), border = fp_border_default(), part = "all") %>% 
   align(i =1, align = "center", part = "header") 
@@ -868,8 +869,8 @@ ft <- flextable(regressionDF) %>%
                             paste0("Community follow-up, Adjusted \n (N = ", N_community, ")"), 
                              paste0("Interaction \n (N = ", N_community + N_clinic, ")")), 
                  top = T, colwidths = c(1, 3, 3, 1)) %>% 
-  width(width = .94) %>%
-  width(j = 1, width = 1.6) %>%
+  width(width = .98) %>%
+  width(j = 1, width = 2.2) %>%
   theme_vanilla()  %>% 
   vline(j = c(1, 4, 7), border = fp_border_default(), part = "all") %>% 
   align(i =1, align = "center", part = "header") 
@@ -877,7 +878,9 @@ ft <- flextable(regressionDF) %>%
 ft
 
 ```
+
 &nbsp;
+
 + Note, we drop 27 participants without endline viral load available.
 + Relative risk is estimated using a GEE poisson model (and log link).
 + Mean Difference is estimated using a GEE linear model.
