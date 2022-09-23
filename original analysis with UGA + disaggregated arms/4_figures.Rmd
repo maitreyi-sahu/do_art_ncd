@@ -1,0 +1,594 @@
+---
+title: "4_figures"
+author: ""
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  word_document:
+    reference_docx: word_styles.docx
+---
+
+```{r setup, include = F, echo = F, warning = F, message = F}
+
+rm(list=ls())
+
+# Load packages
+
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(ggplot2)
+library(plyr)
+library(ggpubr)
+
+# Load data
+
+dir <- "C:/Users/msahu/Documents/Other_Research/DO_ART_NCD/"
+in_dir <- paste0(dir, "0_data/3_cleaned_data/")
+
+ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds"))
+
+df = ncd_merged_subset  # can filter/subset here
+
+# Set up list of variables
+
+cvd.DF = data.frame(
+  
+  cvd_var = c("sbp_mean_exit",
+              "dbp_mean_exit",
+              "bmi",
+              "hemoglobin_a1c_result",
+              "lipid_result"),
+  
+  cvd_cutoff1 = c(120,
+                  80,
+                  25,
+                  5.7,
+                  200 ),
+  
+  cvd_cutoff2 = c(NA,
+                  NA,
+                  30,
+                  6.5,
+                  240),
+  
+  cvd_label = c("Systolic BP (mmHg)",
+                "Diastolic BP (mmHg)",
+                "BMI (kg/m^2)",
+                "Hemoglobin A1c (%)",
+                "Total cholesterol (mg/dL)")
+)
+
+
+cvd_no = 5 # Here we set the variable
+cvd_var = cvd.DF[cvd_no, 1]
+cvd_cutoff1 = cvd.DF[cvd_no, 2]
+cvd_cutoff2 = cvd.DF[cvd_no, 3]
+cvd_label = cvd.DF[cvd_no, 4]
+```
+
+## Overall distribution
+
+&nbsp; 
+```{r, echo =F, message = F, warning = F, fig.height = 4}
+alpha_level = 0.4
+
+ggplot(data = df, aes(x = get(cvd_var), fill = "Overall")) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values = "#5ab4ac") +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  theme_bw() +
+  theme(legend.position= "none") +
+  ggtitle(paste0("Distribution of ", cvd_label, " [overall]"))
+```
+
+## Distribution, by arm [dashed lines are group medians]
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+
+mu <- ddply(df, "arm", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.35
+
+p1 <- ggplot(data = df, aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("All arms")
+
+p2 <- ggplot(data = df %>%  filter(arm != "Hybrid arm"), aes(x = get(cvd_var), fill = arm)) +  
+  geom_density(alpha = alpha_level) +  
+  scale_fill_manual(values=c("#1b9e77", "#d95f02")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Community")
+
+p3 <- ggplot(data = df %>%  filter(arm != "Community arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#1b9e77", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[c(1,3),], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Hybrid")
+
+p4 <- ggplot(data = df %>%  filter(arm != "Clinic arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[2:3,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Community vs. Hybrid")
+
+ggarrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+## Distribution, by gender [dashed lines are group medians]
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+gender_colors = c("#E58601", "#B40F20")
+
+mu <- ddply(df, "genderR", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.7
+
+ggplot(data = df, aes(x = get(cvd_var), fill = genderR)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values = gender_colors) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=genderR),
+             linetype="dashed") +
+  scale_color_manual(values = gender_colors) +
+  theme_bw() +
+  ggtitle("All arms")
+
+```
+
+### Page Break
+
+
+## Distribution, by arm [dashed lines are group medians] -- MEN ONLY
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+
+df = ncd_merged_subset %>%  filter(genderR == "Men")
+
+mu <- ddply(df, "arm", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.35
+
+p1 <- ggplot(data = df, aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("All arms")
+
+p2 <- ggplot(data = df %>%  filter(arm != "Hybrid arm"), aes(x = get(cvd_var), fill = arm)) +  
+  geom_density(alpha = alpha_level) +  
+  scale_fill_manual(values=c("#1b9e77", "#d95f02")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Community")
+
+p3 <- ggplot(data = df %>%  filter(arm != "Community arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#1b9e77", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[c(1,3),], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Hybrid")
+
+p4 <- ggplot(data = df %>%  filter(arm != "Clinic arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[2:3,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Community vs. Hybrid")
+
+ggarrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+### Page Break
+
+
+## Distribution, by arm [dashed lines are group medians] -- WOMEN ONLY
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+
+df = ncd_merged_subset %>%  filter(genderR == "Women")
+
+mu <- ddply(df, "arm", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.35
+
+p1 <- ggplot(data = df, aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("All arms")
+
+p2 <- ggplot(data = df %>%  filter(arm != "Hybrid arm"), aes(x = get(cvd_var), fill = arm)) +  
+  geom_density(alpha = alpha_level) +  
+  scale_fill_manual(values=c("#1b9e77", "#d95f02")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Community")
+
+p3 <- ggplot(data = df %>%  filter(arm != "Community arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#1b9e77", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[c(1,3),], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Hybrid")
+
+p4 <- ggplot(data = df %>%  filter(arm != "Clinic arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[2:3,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Community vs. Hybrid")
+
+ggarrange(p1, p2, p3, p4, ncol = 2)
+```
+
+### Page Break
+
+## Distribution, by viral suppression status at endline [dashed lines are group medians]
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+alpha_level = 0.5
+
+# Excluding missing
+
+vs_colors = c("#00A08A", "#FF0000")
+
+mu <- ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+ggplot(data = df %>%  filter(exit_viral_load_suppressedR != "Missing"), 
+       aes(x = get(cvd_var), fill = exit_viral_load_suppressedR)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values = vs_colors) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2, ], aes(xintercept=grp.median, color= exit_viral_load_suppressedR),
+             linetype="dashed") +
+  scale_color_manual(values = vs_colors) +
+  theme_bw() +
+  ggtitle("All arms, excluding people with missing VS results")
+
+# Including missing
+
+vs_colors = c("#00A08A", "#FF0000", "gray50")
+
+mu <- ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+ggplot(data = df, aes(x = get(cvd_var), fill = exit_viral_load_suppressedR)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values = vs_colors) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2, ], aes(xintercept=grp.median, color= exit_viral_load_suppressedR),
+             linetype="dashed") +
+  scale_color_manual(values = vs_colors) +
+  theme_bw() +
+  ggtitle("All arms, including people with missing VS results")
+
+```
+
+### Page Break
+
+
+## Distribution, by arm [dashed lines are group medians] -- VIRALLY SUPPRESSED ONLY
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+
+df = ncd_merged_subset %>%  filter(exit_viral_load_suppressedR =="Yes")
+
+mu <- ddply(df, "arm", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.35
+
+p1 <- ggplot(data = df, aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("All arms")
+
+p2 <- ggplot(data = df %>%  filter(arm != "Hybrid arm"), aes(x = get(cvd_var), fill = arm)) +  
+  geom_density(alpha = alpha_level) +  
+  scale_fill_manual(values=c("#1b9e77", "#d95f02")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Community")
+
+p3 <- ggplot(data = df %>%  filter(arm != "Community arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#1b9e77", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[c(1,3),], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Hybrid")
+
+p4 <- ggplot(data = df %>%  filter(arm != "Clinic arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[2:3,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Community vs. Hybrid")
+
+ggarrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+
+### Page Break
+
+
+## Distribution, by arm [dashed lines are group medians] -- NOT SUPPRESSED ONLY
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+
+df = ncd_merged_subset %>%  filter(exit_viral_load_suppressedR =="No")
+
+mu <- ddply(df, "arm", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.35
+
+p1 <- ggplot(data = df, aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("All arms")
+
+p2 <- ggplot(data = df %>%  filter(arm != "Hybrid arm"), aes(x = get(cvd_var), fill = arm)) +  
+  geom_density(alpha = alpha_level) +  
+  scale_fill_manual(values=c("#1b9e77", "#d95f02")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Community")
+
+p3 <- ggplot(data = df %>%  filter(arm != "Community arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#1b9e77", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[c(1,3),], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Hybrid")
+
+p4 <- ggplot(data = df %>%  filter(arm != "Clinic arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[2:3,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Community vs. Hybrid")
+
+ggarrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+### Page Break
+
+## Distribution, by country [dashed lines are group medians]
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+alpha_level = 0.7
+
+country_colors = c("#001489","#FFB81C")
+
+mu <- ddply(df, "country", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+ggplot(data = df, aes(x = get(cvd_var), fill = country)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values = country_colors) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2, ], aes(xintercept=grp.median, color= country),
+             linetype="dashed") +
+  scale_color_manual(values = country_colors) +
+  theme_bw() +
+  ggtitle("All arms")
+
+```
+
+### Page Break
+
+
+## Distribution, by arm [dashed lines are group medians] -- SOUTH AFRICA ONLY
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+
+df = ncd_merged_subset %>%  filter(country=="South Africa")
+
+mu <- ddply(df, "arm", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.35
+
+p1 <- ggplot(data = df, aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("All arms")
+
+p2 <- ggplot(data = df %>%  filter(arm != "Hybrid arm"), aes(x = get(cvd_var), fill = arm)) +  
+  geom_density(alpha = alpha_level) +  
+  scale_fill_manual(values=c("#1b9e77", "#d95f02")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Community")
+
+p3 <- ggplot(data = df %>%  filter(arm != "Community arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#1b9e77", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[c(1,3),], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Hybrid")
+
+p4 <- ggplot(data = df %>%  filter(arm != "Clinic arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[2:3,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Community vs. Hybrid")
+
+ggarrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+### Page Break
+
+
+## Distribution, by arm [dashed lines are group medians] -- UGANDA ONLY
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+
+df = ncd_merged_subset %>%  filter(country=="Uganda")
+
+mu <- ddply(df, "arm", summarise, grp.median=median(get(cvd_var), na.rm = T))
+
+alpha_level = 0.35
+
+p1 <- ggplot(data = df, aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +   
+  scale_fill_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu, aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("All arms")
+
+p2 <- ggplot(data = df %>%  filter(arm != "Hybrid arm"), aes(x = get(cvd_var), fill = arm)) +  
+  geom_density(alpha = alpha_level) +  
+  scale_fill_manual(values=c("#1b9e77", "#d95f02")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[1:2,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#d95f02")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Community")
+
+p3 <- ggplot(data = df %>%  filter(arm != "Community arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#1b9e77", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[c(1,3),], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#1b9e77", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Clinic vs. Hybrid")
+
+p4 <- ggplot(data = df %>%  filter(arm != "Clinic arm"), aes(x = get(cvd_var), fill = arm)) + 
+  geom_density(alpha = alpha_level) +
+  scale_fill_manual(values=c("#d95f02", "#7570b3")) +
+  xlab(cvd_label) +
+  geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+  geom_vline(data=mu[2:3,], aes(xintercept=grp.median, color=arm),
+             linetype="dashed") +
+  scale_color_manual(values=c("#d95f02", "#7570b3")) +
+  theme_bw() +
+  ggtitle("Community vs. Hybrid")
+
+ggarrange(p1, p2, p3, p4, ncol = 2)
+```

@@ -2,11 +2,6 @@
 # MSahu
 # April 14, 2022
 
-# 1. Merge NCD dataset
-# 2. Recode NCD outcomes
-# 3. Calculate CVD risk score
-# 4. Recode other categorical vars
-
 # ==============================================================================================
 
 rm(list=ls())
@@ -58,7 +53,7 @@ bpR <- bp %>% mutate(visit2 = case_when(visit=="Enrollment" ~ "baseline",
   filter(visit2 %in% c("baseline", "exit")) %>% 
   dcast(pid ~ visit2, value.var = c("sbp_mean", "dbp_mean"))
 
-ncd_merged <- ncd %>% left_join(bpR, by = "pid")
+ncd_merged <- ncd %>% left_join(bpR, by = "pid") 
 
 # ================================================================================================
 
@@ -91,9 +86,9 @@ ncd_merged <- ncd_merged %>%
         
         sbp_mean_baseline > 180 | dbp_mean_baseline > 120 ~ "Crisis", 
         
-        is.na(sbp_mean_baseline) | is.na(dbp_mean_baseline) ~ "Unknown"),
+        is.na(sbp_mean_baseline) | is.na(dbp_mean_baseline) ~ "Missing"),
       
-      levels = c("Normal", "Elevated", "Hypertension Stage 1", "Hypertension Stage 2", "Unknown")), # No clients with crisis
+      levels = c("Normal", "Elevated", "Hypertension Stage 1", "Hypertension Stage 2", "Missing")), # No clients with crisis
     
     bp_cat_exit = factor( 
       
@@ -109,9 +104,9 @@ ncd_merged <- ncd_merged %>%
         
         sbp_mean_exit > 180 | dbp_mean_exit > 120 ~ "Crisis",
         
-        is.na(sbp_mean_exit) | is.na(dbp_mean_exit) ~ "Unknown"),
+        is.na(sbp_mean_exit) | is.na(dbp_mean_exit) ~ "Missing"),
       
-      levels = c("Normal", "Elevated", "Hypertension Stage 1", "Hypertension Stage 2", "Unknown")),  # No clients with crisis
+      levels = c("Normal", "Elevated", "Hypertension Stage 1", "Hypertension Stage 2", "Missing")),  # No clients with crisis
     
     
     # BP: differences from baseline to endline
@@ -138,13 +133,13 @@ ncd_merged <- ncd_merged %>%
                                   baseline_bmi >= 18.5 & baseline_bmi < 25 ~ "18.5-24.9",
                                   baseline_bmi >= 25 & baseline_bmi < 30 ~ "25-29.9",
                                   baseline_bmi >= 30 ~ "30+",
-                                  is.na(baseline_bmi) ~ "Unknown"),
+                                  is.na(baseline_bmi) ~ "Missing"),
     
     bmi_cat_exit = case_when( bmi < 18.5 ~ "<18.5",
                                   bmi >= 18.5 & bmi < 25 ~ "18.5-24.9",
                                   bmi >= 25 & bmi < 30 ~ "25-29.9",
                                   bmi >= 30 ~ "30+",
-                                  is.na(bmi) ~ "Unknown"),
+                                  is.na(bmi) ~ "Missing"),
     
     
     # BMI - elevated (binary)
@@ -161,8 +156,8 @@ ncd_merged <- ncd_merged %>%
     a1c_cat_exit = factor(case_when( hemoglobin_a1c_result < 5.7 ~ "Normal",
                                      hemoglobin_a1c_result >= 5.7 & hemoglobin_a1c_result < 6.5 ~ "Prediabetes",
                                      hemoglobin_a1c_result >= 6.5 ~ "Diabetes",
-                                     is.na(hemoglobin_a1c_result) ~ "Unknown"),
-                          levels = c("Normal", "Prediabetes", "Diabetes", "Unknown")),
+                                     is.na(hemoglobin_a1c_result) ~ "Missing"),
+                          levels = c("Normal", "Prediabetes", "Diabetes", "Missing")),
     
     # A1C (binary)
     
@@ -179,16 +174,19 @@ ncd_merged <- ncd_merged %>%
     total_cholesterol_exit = factor(case_when( lipid_result < 200 ~ "Normal",
                                                lipid_result >= 200 & lipid_result < 240 ~ "Borderline High",
                                                lipid_result >= 240 ~ "High",
-                                               is.na(lipid_result) ~ "Unknown"),
-                    levels = c("Normal", "Borderline High", "High", "Unknown")),
+                                               is.na(lipid_result) ~ "Missing"),
+                    levels = c("Normal", "Borderline High", "High", "Missing")),
     
     # Total cholesterol (binary)
     
     total_cholesterol_hi_exit = ifelse(lipid_result >= 200, 1, 0),
     
-    # Recode lipid result for WHO package
+    # Recode lipid result in mmol/ L for WHO package
     
-    lipid_result_exitR = ifelse(is.na(lipid_result), 0, lipid_result)
+    # https://www.omnicalculator.com/health/cholesterol-units#:~:text=The%20rules%20for%20converting%20cholesterol,mmol%2FL%20multiply%20by%200.02586%20.
+    # To get from mg/dL to mmol/L multiply by 0.02586
+    
+    lipid_result_exitR = ifelse(is.na(lipid_result), 0, lipid_result*0.02586) 
 )
 
 
@@ -200,7 +198,7 @@ ncd_merged <- ncd_merged %>%
 # Arguments are described here:
 # https://www-ncbi-nlm-nih-gov.offcampus.lib.washington.edu/pmc/articles/PMC5345772/
 
-ncd_cvd_subset <- ncd_merged %>% 
+ncd_merged <- ncd_merged %>% 
   
   # Recode gender
   
@@ -211,20 +209,18 @@ ncd_cvd_subset <- ncd_merged %>%
   mutate(smokingR = case_when ( smoking_status %in% c("Not at all", 
                                                       "I used to smoke, but I quit") ~ 0,
                                 smoking_status %in% c("Yes, occasionally",
-                                                      "Yes, daily or most days") ~ 1)) %>% 
-  # Code WHO subregion: 
-  # https://plos.figshare.com/articles/dataset/World_Health_Organization_WHO_Member_States_by_subregion_/2579569
-  
-  mutate(WHO_subregion = "AFR_E") %>%  # South Africa and Uganda both in Africa E subregion
+                                                      "Yes, daily or most days") ~ 1)) 
+
+ncd_cvd_subset <- ncd_merged %>%   
   
   # Package will give error for missing values - need to drop if N/A
-
+  
   filter(!is.na(sbp_mean_exit)) %>% 
-  filter(!is.na(a1c_diabetes_exit)) 
+  filter(!is.na(a1c_diabetes_exit))  
+
+ncd_cvd_subset <- ncd_cvd_subset %>%
 
 # RUN WHO CVD Calculator  
-  
-ncd_cvd_subset <- ncd_cvd_subset %>% 
     
   mutate(
     who_cvd_risk_exit = 
@@ -235,13 +231,16 @@ ncd_cvd_subset <- ncd_cvd_subset %>%
              sbp = ncd_cvd_subset$sbp_mean_exit, # continuous (mmHg)
              dm = ncd_cvd_subset$a1c_diabetes_exit, # binary (0=not diabetic; 1 = diabetic)
              chl = ncd_cvd_subset$lipid_result_exitR, # Continuous (mmol/ L); 0=unknown cholesterol)
-             subregion = ncd_cvd_subset$WHO_subregion))
+             
+             # Code WHO subregion: 
+             # https://plos.figshare.com/articles/dataset/World_Health_Organization_WHO_Member_States_by_subregion_/2579569
+             subregion = "AFR_E"))  # South Africa and Uganda both in Africa E subregion 
 
 # Merge back with main dataset, recode NA as "unknown"
 
 ncd_merged <- ncd_merged %>% 
-  left_join(ncd_cvd_subset[ , c("pid", "who_cvd_risk_exit")], by = "pid") %>% 
-  mutate(who_cvd_risk_exit = ifelse(is.na(who_cvd_risk_exit), "Unknown", who_cvd_risk_exit))
+  left_join(ncd_cvd_subset[ , c("pid", "who_cvd_risk_exit")], by = "pid")
+ # %>%  mutate(who_cvd_risk_exit = ifelse(is.na(who_cvd_risk_exit), "Missing", who_cvd_risk_exit))
   
 # Create binary "elevated risk" or not  
 
@@ -263,17 +262,27 @@ rm(ncd_cvd_subset)
 ncd_merged <- ncd_merged %>% 
  
    mutate(
+        
+        site = factor(site,
+                      levels = c("ICOBI", "HSRC", "AHRI")),
      
         # Site
-         siteR = case_when(site == "ICOBI" ~ "SW Uganda",
+         siteR = factor(case_when(site == "ICOBI" ~ "SW Uganda",
                           site == "AHRI" ~ "Northern KZN SA",
                           site == "HSRC" ~ "Midlands KZN SA"),
+                        levels = c("SW Uganda", "Midlands KZN SA", "Northern KZN SA")),
+         
+         # Country
+         country = case_when(site == "ICOBI" ~ "Uganda",
+                           site == "AHRI" ~ "South Africa",
+                           site == "HSRC" ~ "South Africa"),
          
          # Age
-         age_cat = factor(case_when(age >= 18 & age <40 ~ "18-39",
-                             age >= 40 & age < 60 ~ "40-59",
-                             age >=60 ~ "60+"),
-                          levels = c("18-39", "40-59", "60+")),
+         age_cat = factor(case_when(age >= 18 & age <30 ~ "18-29",
+                             age >= 30 & age < 45 ~ "30-44",        
+                             age >= 45 & age < 60 ~ "45-59",
+                             age >= 60 ~ "60+"),
+                          levels = c("18-29", "30-44", "45-59", "60+")),
          
          # Gender
          genderR = factor(ifelse(gender=="Female", "Women", "Men"),
@@ -284,8 +293,8 @@ ncd_merged <- ncd_merged %>%
          exit_viral_load_suppressedR = factor(case_when(
            exit_viral_load_suppressed == T ~ "Yes",
            exit_viral_load_suppressed == F ~ "No",
-           is.na(exit_viral_load_suppressed) ~ "Unknown"), 
-           levels = c("Yes", "No", "Unknown")),
+           is.na(exit_viral_load_suppressed) ~ "Missing"), 
+           levels = c("Yes", "No", "Missing")),
          
          # Education
          edu_cat = case_when(education == "Primary" ~ 0,
@@ -341,7 +350,6 @@ ncd_merged <- ncd_merged %>%
 
 # ==========================================================================================================
 
-# Count People Not Virally Suppressed at Baseline  (Excluded from DO ART study)
 length(ncd_merged$baseline_viral_load_suppressed[ncd_merged$baseline_viral_load_suppressed==T]) #216 
 
 ncd_merged_subset <- ncd_merged %>% 

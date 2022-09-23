@@ -1,0 +1,330 @@
+---
+title: "DO ART NCD Supplement"
+author: ""
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  word_document:
+    reference_docx: word_styles.docx
+
+---
+
+```{r setup, include = F, echo = F, warning = F, message = F}
+
+rm(list=ls())
+
+# Load packages
+
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(ggplot2)
+
+# Table formatting packages
+library(janitor)
+library(tables)
+library(flextable)
+
+# Regression packages
+library(sandwich)
+
+# Load data
+
+dir <- "C:/Users/msahu/Documents/Other_Research/DO_ART_NCD/"
+in_dir <- paste0(dir, "0_data/3_cleaned_data/")
+
+ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds"))
+
+ncd_noHybrid <- ncd_merged_subset %>% filter(arm!= "Hybrid arm")
+round_digits = 2
+p_digits = 3
+
+```
+
+
+# Appendix tables 
+
++ Appendix Section 1 Codebook (included with main paper)
++ Appendix Section 2, Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
++ Appendix Section 2, Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315) 
+
+### Page Break
+
+
+## Appendix Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
+
+&nbsp;
+
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+
+# Set up -------------------------------------------------------------
+
+headings <- data.frame(
+  section = c("A", "B", "C"),
+  title = c( "", 
+             "ii) Lifestyle and other risk",
+              "iii) Cardiovascular Risk")
+)
+
+# A) Demographics
+A_vars = c(
+  "age_cat",
+  "genderR"
+  )
+A_var_labels = c(
+  "Age",
+  "Gender"
+  )
+
+# B) Lifestyle and Other Risk
+
+B_vars = c(  
+  "smoking_cat",
+  "exer_cat",
+  "veg_cat",
+  "stroke_cat")
+B_var_labels = c(
+  "Smoking Status  \n [Baseline]",
+  "Days of exercise (per week) \n [Endline]",
+  "Vegetable intake \n [Endline]",
+   "Prior stroke or heart attack  \n [Endline]")
+
+
+# C) Cardiovascular risk
+C_vars = c(
+  "bp_cat_exit", 
+  "bmi_cat_exit", 
+  "a1c_cat_exit", 
+  "total_cholesterol_exit",
+  "who_cvd_risk_exit")
+C_var_labels = c(
+  "Blood pressure \n [Endline]",
+   "BMI (kg/m^2) \n [Endline]",
+   "Hemoglobin A1C (%) \n [Endline]",
+   "Total cholesterol (mg/dL) \n [Endline]",
+   "10-year CVD risk score \n [Endline]")
+
+# D) Change in CVD risk
+D_vars = c(  
+  "bmi_diff",
+  "sbp_diff")
+D_var_labels = c(
+  "Change in BMI, baseline to endline  \n [AHRI only]",
+  "Change in Systolic Blood pressure, baseline to endline  \n [AHRI only]" )
+
+
+table_vars <- data.frame(
+  
+  var_name = c(D_vars),
+
+  var_label = c(D_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(D_vars) ~ "D"))
+  
+  
+# Descriptive Proportion Table ----------------------------------------------------
+
+col_headings_mean <- c(
+    "",
+  "Clinic Arm \n Mean (SE)", 
+  "Community Arm \n Mean (SE)",
+  "Hybrid Arm \n Mean (SE)",
+  "Women \n Mean (SE)", 
+  "Men \n Mean (SE)",
+  "Total \n Mean (SE)"
+  )
+
+
+  
+  table_subset <- table_vars[table_vars$section=="D", ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        clinic_arm = character(),
+        community_arm = character(),
+        hybrid_arm = character(),
+        Women = character(),
+        Men = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+      
+    data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+    temp1 <- data %>% 
+      group_by(arm) %>% 
+      summarize(N = n(),
+                mean = round(mean(!!sym(v), na.rm = T), 1), 
+                se = round(sd(!!sym(v), na.rm = T)/sqrt(N), 1)) %>% 
+      mutate(value = paste0(mean, " (", se, ")")) %>% 
+      select(-c(mean, se, N)) %>% 
+      
+      # Format using Janitor package
+      t %>% as.data.frame() %>% row_to_names(1)
+    
+    temp2 <- data %>% 
+      group_by(genderR) %>% 
+      summarize(N = n(),
+                mean = round(mean(!!sym(v), na.rm = T), 1), 
+                se = round(sd(!!sym(v), na.rm = T)/sqrt(N), 1)) %>% 
+      mutate(value = paste0(mean, " (", se, ")")) %>% 
+      select(-c(mean, se, N)) %>% 
+      
+      # Format using Janitor package
+      t %>% as.data.frame() %>% row_to_names(1)
+    
+    temp3 <- data %>% 
+      summarize(N = n(),
+                mean = round(mean(!!sym(v), na.rm = T), 1), 
+                se = round(sd(!!sym(v), na.rm = T)/sqrt(N), 1)) %>% 
+      mutate(Total = paste0(mean, " (", se, ")")) %>% 
+      select(-c(mean, se, N)) 
+      
+    
+    temp <- cbind(temp1, temp2, temp3) %>% 
+      # Clean up headers
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      mutate(category = "") %>% 
+      select(variable, category, everything())
+   
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+   
+  delete_part(part = "header") %>%
+  add_header_row(values = c("Change in CVD risk", col_headings_mean))  %>%     
+  align(i = 1, part = "header", align = "center") %>%
+  merge_v(j = "variable") %>%
+  width(width = 1.25) %>% 
+  theme_vanilla()  %>% 
+  vline(j = c(2, 5, 7), border = fp_border_default(), part = "all")
+
+flextable_to_rmd(ft)  
+
+rm(temp, temp1, temp2, temp3)  
+
+
+```
+
+
+### Page break
+
+## Appendix Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315)
+
+&nbsp;
+
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+# Set up --------------------------------------------------------------------------
+
+headings <- data.frame(
+  section = c("A", "B", "C"),
+  title = c( "", 
+             "ii) Lifestyle and other risk",
+              "iii) Cardiovascular Risk")
+)
+
+# A) Demographics
+A_vars = c(
+  "age_cat","genderR"
+  )
+A_var_labels = c(
+  "Age", "Gender"
+  )
+
+# B) Lifestyle and Other Risk (same as above)
+
+# C) Cardiovascular risk (same as above)
+
+table_vars <- data.frame(
+  
+  var_name = c(A_vars, B_vars, C_vars),
+
+  var_label = c(A_var_labels, B_var_labels, C_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(A_vars) ~ "A",
+      var_name %in% c(B_vars) ~ "B",
+      var_name %in% c(C_vars) ~ "C")
+    )
+  
+
+# Descriptive Proportion Table ----------------------------------------------------
+
+col_headings_freq <- c(
+  "Category",
+  "SW Uganda \n n (%)",
+  "Midlands KZN SA \n n (%)", 
+  "Northern KZN SA \n n (%)",
+  "Total \n n (%)"
+  )
+
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        sw_uganda = character(),
+        midlands_kzn = character(),
+        northern_kzn = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+      
+    data = ncd_merged_subset 
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), site) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1,
+             sw_uganda = "ICOBI",
+             midlands_kzn = "HSRC",
+             northern_kzn = "AHRI") %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+    
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+  
+  delete_part(part = "header") %>%
+  add_header_row(values = c(headings[headings$section == i, "title"], col_headings_freq))  %>%     
+  align(i = 1, part = "header", align = "center") %>%
+  merge_v(j = "variable") %>%
+  width(width = 1.55) %>%
+  theme_vanilla() %>% 
+  vline(j = c(2, 5), border = fp_border_default(), part = "all")
+
+flextable_to_rmd(ft)  
+
+rm(temp)  
+}
+```

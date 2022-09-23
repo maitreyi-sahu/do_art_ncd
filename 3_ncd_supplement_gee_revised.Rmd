@@ -1,0 +1,673 @@
+---
+title: "DO ART NCD Supplement"
+author: ""
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  word_document:
+    reference_docx: word_styles.docx
+
+---
+
+```{r setup, include = F, echo = F, warning = F, message = F}
+
+rm(list=ls())
+
+# Load packages
+
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(ggplot2)
+
+# Table formatting packages
+library(janitor)
+library(tables)
+library(flextable)
+
+# Regression packages
+library(geepack)
+
+# Load data
+
+dir <- "C:/Users/msahu/Documents/Other_Research/DO_ART_NCD/"
+in_dir <- paste0(dir, "0_data/3_cleaned_data/")
+
+# DO WE WANT TO COMBINE COMMUNITY AND HYBRID HERE??
+
+ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
+  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                          arm == "Community arm" ~ "Community follow-up",
+                          arm == "Hybrid arm" ~ "Community follow-up" ))
+
+
+
+ncd_noHybrid <- ncd_merged_subset %>% filter(arm!= "Hybrid arm")
+round_digits = 2
+p_digits = 3
+
+```
+
+
+# Appendix tables 
+
+## S1: Variables Description
+
++ S1 Codebook (included with main paper)
+
+## S2: Additional Descriptive Statistics
+
++ S2, Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
++ S2, Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site and including Uganda (N = 1315) 
+
+## S3: Additional Analysis
+
++ S3, Table 1: Table 3 for all sites, with interaction terms p-value (unadjusted and adjusted)
++ S3, Table 2: Table 3 for COMMUNITY arm, with interaction term p-value (unadjusted and adjusted)
++ S3, Table 3: Table 3 for CLINIC arm, with interaction term p-value (unadjusted and adjusted)
++ S3, Table 4: Interaction term coefficients [current Table 6]
+
+## S4: Additional Figures
+
++ S4 Figure 1: CVD variables, comparing community follow-up with clinic follow-up
++ S4 Figure 2: CVD variables, comparing VS versus not - COMMUNITY FOLLOW-UP GROUP
++ S4 Figure 3: CVD variables, comparing VS versus not - CLINIC FOLLOW-UP GROUP
++ S4 Figure 4: CVD variables, by age 
+
+
+### Page Break
+
+
+## Appendix Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
+
+&nbsp;
+
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+
+# Set up -------------------------------------------------------------
+
+headings <- data.frame(
+  section = c("A", "B", "C"),
+  title = c( "", 
+             "ii) Lifestyle and other risk",
+              "iii) Cardiovascular Risk")
+)
+
+# A) Demographics
+A_vars = c(
+  "age_cat",
+  "genderR"
+  )
+A_var_labels = c(
+  "Age",
+  "Gender"
+  )
+
+# B) Lifestyle and Other Risk
+
+B_vars = c(  
+  "smoking_cat",
+  "exer_cat",
+  "veg_cat",
+  "stroke_cat")
+B_var_labels = c(
+  "Smoking Status  \n [Baseline]",
+  "Days of exercise (per week) \n [Endline]",
+  "Vegetable intake \n [Endline]",
+   "Prior stroke or heart attack  \n [Endline]")
+
+
+# C) Cardiovascular risk
+C_vars = c(
+  "bp_cat_exit", 
+  "bmi_cat_exit", 
+  "a1c_cat_exit", 
+  "total_cholesterol_exit",
+  "who_cvd_risk_exit")
+C_var_labels = c(
+  "Blood pressure \n [Endline]",
+   "BMI (kg/m^2) \n [Endline]",
+   "Hemoglobin A1C (%) \n [Endline]",
+   "Total cholesterol (mg/dL) \n [Endline]",
+   "10-year CVD risk score \n [Endline]")
+
+# D) Change in CVD risk
+D_vars = c(  
+  "bmi_diff",
+  "sbp_diff")
+D_var_labels = c(
+  "Change in BMI, baseline to endline  \n [AHRI only]",
+  "Change in Systolic Blood pressure, baseline to endline  \n [AHRI only]" )
+
+
+table_vars <- data.frame(
+  
+  var_name = c(D_vars),
+
+  var_label = c(D_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(D_vars) ~ "D"))
+  
+  
+# Descriptive Proportion Table ----------------------------------------------------
+
+col_headings_mean <- c(
+  "Change in CVD risk",
+  "Clinic Arm \n Mean (SE)", 
+  "Community Arm \n Mean (SE)",
+  "Hybrid Arm \n Mean (SE)",
+  "Women \n Mean (SE)", 
+  "Men \n Mean (SE)",
+  "Total \n Mean (SE)"
+  )
+
+
+  table_subset <- table_vars[table_vars$section=="D", ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        clinic_arm = character(),
+        community_arm = character(),
+        hybrid_arm = character(),
+        Women = character(),
+        Men = character(),
+        Total = character()
+    )
+  
+  
+  for (v in unique(table_subset$var_name)) {
+      
+    data = ncd_merged_subset %>% filter(site == "AHRI") # subset to AHRI for this section
+    
+    m <- geeglm( get(v) ~ 1, 
+            family = gaussian, data = data,
+            id = hhid, corstr = "independence") 
+    
+    mean =  round( coef(m)[["(Intercept)"]], round_digits)
+    se = round( summary(m)$coef["(Intercept)", 2], round_digits)
+    
+    result_total = paste0(mean, " (", se, ")")
+    
+    for (t in unique(data$arm)) {
+        
+      m <- geeglm( get(v) ~ 1, 
+            family = gaussian, data = data %>% filter(arm == t),
+            id = hhid, corstr = "independence") 
+    
+      mean = round( coef(m)[["(Intercept)"]], round_digits)
+      se = round( summary(m)$coef["(Intercept)", 2], round_digits)
+      
+      assign(paste0("result_",t), paste0(mean, " (", se, ")"))
+      
+    }
+    
+     for (g in unique(data$genderR)) {
+        
+      m <- geeglm( get(v) ~ 1, 
+            family = gaussian, data = data %>%  filter(genderR == g),
+            id = hhid, corstr = "independence") 
+    
+      mean =  round(coef(m)[["(Intercept)"]], round_digits)
+      se = round(summary(m)$coef["(Intercept)", 2], round_digits)
+      
+      assign(paste0("result_",g), paste0(mean, " (", se, ")"))
+     }
+    
+    temp_row = c(table_vars[table_vars$var_name == v, "var_label"],
+                 `result_Clinic arm` ,
+                 `result_Community arm`,
+                 `result_Hybrid arm`,
+                 result_Women,
+                 result_Men,
+                 result_total)
+    
+    tableDF <- rbind(tableDF, temp_row)
+}
+  
+  # Flextable
+  
+names(tableDF) <- c("variable", 
+                   "clinic_arm", "community_arm", "hybrid_arm",
+                   "Women", "Men", "Total")
+
+ft <- flextable(tableDF) %>%
+   
+  delete_part(part = "header") %>%
+  add_header_row(values = c(col_headings_mean))  %>%     
+  align(i = 1, part = "header", align = "center") %>%
+  width(width = 1.25) %>% 
+    width(j = 1, width = 2) %>%
+  theme_vanilla()  %>% 
+  vline(j = c(1, 4, 6), border = fp_border_default(), part = "all")
+
+flextable_to_rmd(ft)  
+
+```
+
+```{r, echo = F, include = F}
+
+# NUMBER PLUGGING FOR MANUSCRIPT
+## THIS IS VERY , VERY JANKY CODE - be careful!!
+
+#Total
+
+bmi = tableDF[[1,7]]
+bmi_mean = as.numeric(substr(bmi, start = 1, stop = 4))
+bmi_se = (as.numeric(substr(bmi, start = 7, stop = 10)))
+lower = bmi_mean - qnorm(0.975)*bmi_se
+upper = bmi_mean + qnorm(0.975)*bmi_se
+round(lower, 2)
+round(upper, 2)
+
+sbp = tableDF[[2,7]]
+sbp_mean = as.numeric(substr(sbp, start = 1, stop = 4))
+sbp_se = (as.numeric(substr(sbp, start = 7, stop = 10)))
+lower = sbp_mean - qnorm(0.975)*sbp_se
+upper = sbp_mean + qnorm(0.975)*sbp_se
+round(lower, 2)
+round(upper, 2)
+
+# Women
+
+bmi = tableDF[[1,5]]
+bmi_mean = as.numeric(substr(bmi, start = 1, stop = 4))
+bmi_se = (as.numeric(substr(bmi, start = 7, stop = 10)))
+lower = bmi_mean - qnorm(0.975)*bmi_se
+upper = bmi_mean + qnorm(0.975)*bmi_se
+round(lower, 2)
+round(upper, 2)
+
+sbp = tableDF[[2,5]]
+sbp_mean = as.numeric(substr(sbp, start = 1, stop = 3)) # update start/stop manually
+sbp_se = (as.numeric(substr(sbp, start = 6, stop = 9))) # update start/stop manually
+lower = sbp_mean - qnorm(0.975)*sbp_se
+upper = sbp_mean + qnorm(0.975)*sbp_se
+round(lower, 1)
+round(upper, 1)
+
+# Men
+
+bmi = tableDF[[1,6]]
+bmi_mean = as.numeric(substr(bmi, start = 1, stop = 4))
+bmi_se = (as.numeric(substr(bmi, start = 7, stop = 10)))
+lower = bmi_mean - qnorm(0.975)*bmi_se
+upper = bmi_mean + qnorm(0.975)*bmi_se
+round(lower, 1)
+round(upper, 1)
+
+sbp = tableDF[[2,6]]
+sbp_mean = as.numeric(substr(sbp, start = 1, stop = 4))
+sbp_se = (as.numeric(substr(sbp, start = 7, stop = 10)))
+lower = sbp_mean - qnorm(0.975)*sbp_se
+upper = sbp_mean + qnorm(0.975)*sbp_se
+round(lower, 1)
+round(upper, 1)
+```
+
+
+### Page break
+
+## Appendix Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315)
+
+&nbsp;
+
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+# Set up --------------------------------------------------------------------------
+
+headings <- data.frame(
+  section = c("A", "B", "C"),
+  title = c( "", 
+             "ii) Lifestyle and other risk",
+              "iii) Cardiovascular Risk")
+)
+
+# A) Demographics
+A_vars = c(
+  "age_cat","genderR"
+  )
+A_var_labels = c(
+  "Age", "Gender"
+  )
+
+# B) Lifestyle and Other Risk (same as above)
+
+# C) Cardiovascular risk (same as above)
+
+table_vars <- data.frame(
+  
+  var_name = c(A_vars, B_vars, C_vars),
+
+  var_label = c(A_var_labels, B_var_labels, C_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(A_vars) ~ "A",
+      var_name %in% c(B_vars) ~ "B",
+      var_name %in% c(C_vars) ~ "C")
+    )
+  
+
+# Descriptive Proportion Table ----------------------------------------------------
+
+col_headings_freq <- c(
+  "Category",
+  "SW Uganda \n n (%)",
+  "Midlands KZN SA \n n (%)", 
+  "Northern KZN SA \n n (%)",
+  "Total \n n (%)"
+  )
+
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        sw_uganda = character(),
+        midlands_kzn = character(),
+        northern_kzn = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+      
+    data = ncd_merged_subset 
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), site) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1,
+             sw_uganda = "ICOBI",
+             midlands_kzn = "HSRC",
+             northern_kzn = "AHRI") %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+    
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+  
+  delete_part(part = "header") %>%
+  add_header_row(values = c(headings[headings$section == i, "title"], col_headings_freq))  %>%     
+  align(i = 1, part = "header", align = "center") %>%
+  merge_v(j = "variable") %>%
+  width(width = 1.55) %>%
+  theme_vanilla() %>% 
+  vline(j = c(2, 5), border = fp_border_default(), part = "all")
+
+flextable_to_rmd(ft)  
+
+rm(temp)  
+}
+```
+
+&nbsp;
+
+
+## Appendix Table 3. Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline, in South Africa (N = ???).
+
+** Note, we drop XX participants without endline viral load available.
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+
+# Subset to South Africa only!!
+# NOTE: we combine the community and hybrid arm (community follow-up), compared to clinic
+
+ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
+  filter(country == "South Africa") %>% 
+  mutate(site = factor (site,
+                       levels = c("HSRC",
+                                  "AHRI"))) %>% 
+  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                          arm == "Community arm" ~ "Community follow-up",
+                          arm == "Hybrid arm" ~ "Community follow-up" ))
+  
+  
+round_digits = 2
+p_digits = 3
+
+# DROP NA for GEE to run
+
+vs_subset <- ncd_merged_subset %>% 
+  filter(!is.na(exit_viral_load_result))
+
+# POISSON REGRESSIONS --------------------------------------------------------------------------
+
+reg_vars <- data.frame(
+  
+  var_name = c(
+    "bp_hi_exit", 
+    "overwt_exit", 
+    "a1c_hi_exit",
+    "smokingR"
+   ),
+
+  var_label = c(
+    "Elevated BP",
+    "Overweight (BMI >= 25)",
+    "Elevated blood sugar (a1c >= 5.7)",
+    "Current smoker [baseline]"
+  ))
+  
+regressionDF <- data.frame(
+        variable = character(),
+        rr = numeric(),
+        rr_ci = character(),
+        rr_p = numeric(),
+        adj.rr = character(),
+        adj.rr_ci = character(), 
+        adj.rr_p = character() 
+    )
+
+ 
+for (v in unique(reg_vars$var_name)) {
+
+  # Adjusted for site only
+  m <- geeglm(get(v) ~ site + exit_viral_load_suppressed, 
+              family = poisson, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  m.rr <- exp(coef(m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  m.se <- summary(m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  m.rr_ci <- exp(c(coef(m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*m.se, 
+                  coef(m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*m.se)) # RR: 95% CI 
+  m.p <- summary(m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  # Adjusted for site, age, gender, smoking 
+  
+  if (v != "smokingR") {
+  
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smoking_status + exit_viral_load_suppressed, 
+              family = poisson, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  if (v == "smokingR") {
+  
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + exit_viral_load_suppressed, 
+              family = poisson, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+                as.numeric(round(m.rr, round_digits)), 
+                paste0("(",
+                       as.numeric(round(m.rr_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(m.rr_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(m.p, p_digits)),
+                as.numeric(round(adj.rr, round_digits)), 
+                paste0("(",
+                       as.numeric(round(adj.rr_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(adj.rr_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(adj.p, p_digits)))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+  
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Relative Risk",
+    "95% CI",
+    "p-value",
+    "Adj. Relative Risk",
+    "Adj. 95% CI",
+    "Adj. p-value")
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Baseline Analysis", "Adjusted Analysis"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla() %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+
+# LINEAR REGRESSIONS -------------------------------------------------------------------------------
+
+lin_reg_vars <- data.frame(
+  
+  var_name = c(
+    "sbp_mean_exit",
+    "dbp_mean_exit", 
+    "bmi", 
+    "hemoglobin_a1c_result",
+    "lipid_result"),
+
+  var_label = c(
+    "Systolic blood pressure (mmHg)",
+    "Diastolic blood pressure (mmHg)",
+    "BMI (kg/m^2)",
+    "Hemoglobin A1c (%)",
+    "Total cholesterol (mg/dL)") 
+)
+  
+
+regressionDF <- data.frame(
+        variable = character(),
+        rd = numeric(),
+        rd_ci = character(),
+        rd_p = numeric(),
+        adj.rd = character(),
+        adj.rd_ci = character(), 
+        adj.rd_p = character() 
+)
+ 
+ 
+for (v in unique(lin_reg_vars$var_name)) {
+  
+   # Adjusted for site only
+  lm <- geeglm(get(v) ~ site + exit_viral_load_suppressed, 
+              family = gaussian, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  rd <- coef(lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  lm.se <- summary(lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  rd_ci <- c(coef(lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*lm.se, 
+                coef(lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*lm.se) # 95% CI
+  rd_p <- summary(lm)$coef["exit_viral_load_suppressedTRUE",4]
+
+  # Adjusted for site, age, gender, smoking 
+  
+  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smoking_status + exit_viral_load_suppressed, 
+              family = gaussian, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  adj.rd <- coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  adj.lm.se <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rd_ci <- c(coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.lm.se, 
+                  coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.lm.se) # 95% CI
+  adj.rd_p <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  temp_row <- c(lin_reg_vars[lin_reg_vars$var_name == v, "var_label"], 
+                as.numeric(round(rd, round_digits)), 
+                paste0("(",
+                       as.numeric(round(rd_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(rd_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(rd_p, p_digits)),
+                as.numeric(round(adj.rd, round_digits)), 
+                paste0("(",
+                       as.numeric(round(adj.rd_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(adj.rd_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(adj.rd_p, p_digits)))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Mean Difference",
+    "95% CI",
+    "p-value",
+    "Adj. Mean Difference",
+    "Adj. 95% CI",
+    "Adj. p-value")
+
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Baseline Analysis", "Adjusted Analysis"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla()  %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+```
+
+
+&nbsp;
+
++ Relative risk is estimated using a GEE poisson model  (and log link).
++ Mean difference is estimated using a GEE linear model.
++ This analysis does NOT include trial arm.
++ Baseline model adjusts for site only; adjusted models include site, age, smoking, and gender
++ The adjusted model for smoking includes only site, age and gender
