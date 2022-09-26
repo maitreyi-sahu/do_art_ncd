@@ -46,7 +46,6 @@ ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>%
 round_digits = 2
 p_digits = 3
 
-# WARNING that chunks build on each other! Can't run individually
 
 ```
 
@@ -55,6 +54,9 @@ p_digits = 3
 + Table 1: Descriptive statistics of cardiovascular risk in the South Africa site of the DO ART study, by trial arm and gender
 + Table 2: Poisson + linear regressions for community follow-up compared with clinic follow-up, and including VS
 + Table 3: Poisson + linear regressions with VS as predictor, stratified by treatment arm; with interaction term for VS
+
+&nbsp;
+**Note that regression analysis uses smoking as a binary variable (even though descriptive shows categorical, because some of the regressions don't run otherwise - maybe getting small group problems)
 
 ## Distribution figures (South Africa only)
 
@@ -228,7 +230,7 @@ rm(temp, temp1, temp2)
 
 ### Page Break
 
-## Table 2. Cardiovascular risk for community HIV follow-up care compared with clinic-based follow-up (N = 1010).
+## Table 2. Cardiovascular risk for community follow-up HIV care versus clinic follow-up care, South Africa (N = 1010).
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
@@ -284,7 +286,7 @@ for (v in unique(reg_vars$var_name)) {
   
    if (v != "smokingR") {
   
-  adj.m <- geeglm(get(v) ~ armR + site + age_cat + genderR + smoking_status, 
+  adj.m <- geeglm(get(v) ~ armR + site + age_cat + genderR + smokingR, 
               family = poisson, data = ncd_merged_subset,
               id = hhid, corstr = "independence") 
   
@@ -308,7 +310,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v != "smokingR") {
   
-  ext.m <- geeglm(get(v) ~ armR + site + age_cat + genderR + smoking_status+ exit_viral_load_suppressedR, 
+  ext.m <- geeglm(get(v) ~ armR + site + age_cat + genderR + smokingR + exit_viral_load_suppressedR, 
               family = poisson, data = ncd_merged_subset,
               id = hhid, corstr = "independence") 
   
@@ -432,7 +434,7 @@ for (v in unique(lin_reg_vars$var_name)) {
 
   # Adjusted for site, age, gender, smoking 
   
-  adj.lm <- geeglm(get(v) ~ armR + site + age_cat + genderR + smoking_status, 
+  adj.lm <- geeglm(get(v) ~ armR + site + age_cat + genderR + smokingR, 
               family = gaussian, data = ncd_merged_subset,
               id = hhid, corstr = "independence") 
   adj.rd <- coef(adj.lm)[["armRCommunity follow-up"]] # Mean Difference
@@ -443,7 +445,7 @@ for (v in unique(lin_reg_vars$var_name)) {
 
   # Adjusted for VS and site, age, gender, smoking 
   
-  ext.lm <- geeglm(get(v) ~ armR + site + age_cat + genderR + smoking_status+ exit_viral_load_suppressedR, 
+  ext.lm <- geeglm(get(v) ~ armR + site + age_cat + genderR + smokingR + exit_viral_load_suppressedR, 
               family = gaussian, data = ncd_merged_subset,
               id = hhid, corstr = "independence") 
   ext.rd <- coef(ext.lm)[["armRCommunity follow-up"]] # Mean Difference
@@ -517,7 +519,7 @@ ft
 
 ### Page Break
 
-## Table 3: Poisson + linear regressions with VS as predictor, stratified by treatment arm; with interaction term for VS 
+## Table 3: Cardiovascular risk for persons virally suppressed versus not suppressed at endline, South Africa (N = 983). 
 &nbsp;
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
@@ -663,7 +665,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v != "smokingR") {
   
-  int.m <- geeglm(get(v) ~ site + age_cat + genderR + smoking_status + exit_viral_load_suppressed*armR, 
+  int.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + exit_viral_load_suppressed*armR, 
               family = poisson, data = vs_subset,
               id = hhid, corstr = "independence") 
   int.p <- summary(int.m)$coef["exit_viral_load_suppressedTRUE:armRCommunity follow-up",4]
@@ -832,7 +834,7 @@ intDF <- data.frame(
  
 for (v in unique(lin_reg_vars$var_name)) {
   
-  int.m <- geeglm(get(v) ~  site + age_cat + genderR + smoking_status + exit_viral_load_suppressed*armR, 
+  int.m <- geeglm(get(v) ~  site + age_cat + genderR + smokingR + exit_viral_load_suppressed*armR, 
               family = gaussian, data = vs_subset,
               id = hhid, corstr = "independence") 
   int.p <- summary(int.m)$coef["exit_viral_load_suppressedTRUE:armRCommunity follow-up",4]
@@ -853,10 +855,10 @@ regressionDF <- regressionDF_clinic %>%
   
 names(regressionDF) =
   c("Variable",
-    "Adj. Relative Risk",
+    "Adj. Mean Difference",
     "Adj. 95% CI",
     "Adj. p-value",
-    "Adj. Relative Risk ",
+    "Adj. Mean Difference ",
     "Adj. 95% CI ",
     "Adj. p-value ",
     "Adj.  p-value")
@@ -889,7 +891,7 @@ ft
 + For smoker, the adjusted and extended analyses do not adjust for smoking
 
 ### Page Break
-## Figure 1: Distribution, by viral suppression status at endline [dashed lines are group medians]
+## Figure 1: Distribution of cardiovascular risk, by viral suppression status at endline [dashed lines are group medians]
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 df = ncd_merged_subset %>%  filter(exit_viral_load_suppressedR != "Missing")
@@ -1014,3 +1016,4 @@ ggarrange(p1, p3, p4, p5, # skip DBP
 
 
 ```
+
