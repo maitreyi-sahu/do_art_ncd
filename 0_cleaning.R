@@ -292,6 +292,14 @@ ncd_merged <- ncd_merged %>%
          # Gender
          genderR = factor(ifelse(gender=="Female", "Women", "Men"),
                           levels = c("Women", "Men")), 
+        
+        # Education
+        educationR = factor(case_when(education == "Primary" ~ "Primary",
+                                      education == "Secondary" ~ "Secondary",
+                                      education == "Tertiary and above" ~ "Tertiary+",
+                                      education == "Unknown" ~ "Missing",
+                                      education == "Declined to answer" ~ "Missing"),
+        levels = c("Primary", "Secondary", "Tertiary+", "Missing")),
          
          # Viral suppression at exit 
          
@@ -312,9 +320,9 @@ ncd_merged <- ncd_merged %>%
                              occupation == "Farming/animal raising" ~ 1,
                              occupation == "Labourer/semi skilled" ~ 2,
                              occupation == "Trade/sales" ~ 3,
-                             occupation == "Professional" ~ 4,
+                             occupation == "Housewife" ~ 4, 
                              occupation == "Student" ~ 5,
-                             occupation == "Housewife" ~ 6, 
+                             occupation == "Professional" ~ 6,
                              occupation == "Other" | occupation == "Declined to answer" ~ 7),
          
          # Smoking 
@@ -358,13 +366,15 @@ ncd_merged <- ncd_merged %>%
 length(ncd_merged$baseline_viral_load_suppressed[ncd_merged$baseline_viral_load_suppressed==T]) #216 
 
 ncd_merged_subset <- ncd_merged %>% 
-  filter(baseline_viral_load_suppressed == F | is.na(baseline_viral_load_suppressed)) # 1315
+  filter(baseline_viral_load_suppressed == F | is.na(baseline_viral_load_suppressed)) 
+
+ncd_merged_subset %>%  nrow() # 1315
 
 # Check missingness
-ncd_merged_subset %>% filter(who_cvd_risk_exit == "Unknown") %>%  nrow() # 170 missing; 13% of data
-ncd_merged_subset %>% filter(sbp_mean_exit == "Unknown") %>%  nrow() # 18
-ncd_merged_subset %>% filter(a1c_diabetes_exit == "Unknown") %>%  nrow() # 170
-ncd_merged_subset %>% filter(sbp_mean_exit == "Unknown" & !(a1c_diabetes_exit == "Unknown")) %>%  nrow() # 0
+ncd_merged_subset %>% filter(is.na(who_cvd_risk_exit)) %>%  nrow() # 170 missing; 13% of data
+ncd_merged_subset %>% filter(sbp_mean_exit == "Missing") %>%  nrow() # 18
+ncd_merged_subset %>% filter(a1c_diabetes_exit == "Missing") %>%  nrow() # 170
+ncd_merged_subset %>% filter(sbp_mean_exit == "Missing" & !(a1c_diabetes_exit == "Missing")) %>%  nrow() # 0
 
 # SAVE ------------------------------------------------------------------------------------------------------
 
