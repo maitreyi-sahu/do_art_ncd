@@ -29,7 +29,7 @@ library(whoishRisk)
 
 # Directories
 
-dir <- "C:/Users/msahu/Documents/Other_Research/DO_ART_NCD/"
+dir <- "C:/Users/msahu/OneDrive - UW/Documents/Research/DGH+MGH/DO_ART_NCD/"
 in_dir <- paste0(dir, "0_data/2_raw_data/")
 out_dir <- paste0(dir, "0_data/3_cleaned_data/")
 
@@ -239,8 +239,8 @@ ncd_cvd_subset <- ncd_cvd_subset %>%
 # Merge back with main dataset, recode NA as "unknown"
 
 ncd_merged <- ncd_merged %>% 
-  left_join(ncd_cvd_subset[ , c("pid", "who_cvd_risk_exit")], by = "pid")
- # %>%  mutate(who_cvd_risk_exit = ifelse(is.na(who_cvd_risk_exit), "Missing", who_cvd_risk_exit))
+  left_join(ncd_cvd_subset[ , c("pid", "who_cvd_risk_exit")], by = "pid") 
+%>%  mutate(who_cvd_risk_exit = ifelse(is.na(who_cvd_risk_exit), "Missing", who_cvd_risk_exit))
   
 # Create binary "elevated risk" or not  
 
@@ -340,25 +340,25 @@ ncd_merged <- ncd_merged %>%
          # Stroke or heart attack in the past
          stroke_cat = factor( case_when(ever_had_stroke =="No" ~ "No",
                                 ever_had_stroke == "Yes" ~ "Yes", 
-                                T ~ "Unknown"),
-                              levels = c("No", "Yes", "Unknown")),
+                                T ~ "Missing"),
+                              levels = c("No", "Yes", "Missing")),
          
          # Vegetables
          veg_cat = factor(case_when(eat_vegetables == "Rarely" | eat_vegetables =="Never" ~ "Never or rarely",
                              eat_vegetables == "Sometimes" ~ "Sometimes",
                              eat_vegetables =="Always" | eat_vegetables =="Usually" ~ "Always or usually",
-                             eat_vegetables == "Refused" ~ "Unknown",
-                             T ~ "Unknown"),
-                          levels = c("Always or usually", "Sometimes", "Never or rarely", "Unknown")),
+                             eat_vegetables == "Refused" ~ "Missing",
+                             T ~ "Missing"),
+                          levels = c("Always or usually", "Sometimes", "Never or rarely", "Missing")),
          
          # Exercise
          exer_cat = factor(case_when(days_exercise == "0" ~ "0",
                                      days_exercise == "1-2" ~ "1-2",
                                      days_exercise == "3-4" ~ "3-4",
                                      days_exercise == "5-7" ~ "5-7",
-                                     days_exercise == "Don't Know" ~ "Unknown",
-                                     T ~ "Unknown"),
-                           levels = c("5-7","3-4","1-2", "0", "Unknown"))
+                                     days_exercise == "Don't Know" ~ "Missing",
+                                     T ~ "Missing"),
+                           levels = c("5-7","3-4","1-2", "0", "Missing"))
 )
 
 # ==========================================================================================================

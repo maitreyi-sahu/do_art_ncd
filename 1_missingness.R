@@ -1,30 +1,53 @@
 # From class project (SAP code -- RMD file)
 # Need to update...
 
+# ------------------------------------------------------------------------------
 
-# Table One
-ncd_subset <- ncd_merged[,c(2:4, 7:23, 26:29)]
-Vars <- colnames(ncd_subset)
-# you need to specify which variables are factors
-factor_var <- c("arm", "country", "site", "gender","education","occupation","smoking_status", 
-                "baseline_who_stage", "baseline_viral_load_result_cat","exit_viral_load_result_cat") 
-tb1 <- CreateTableOne(vars = Vars, data = ncd_subset, factorVars = factor_var)
-print(tb1, quote = F, noSpaces = TRUE)
+rm(list=ls())
 
-ncd_subset <- ncd_merged[,c(2:4, 7:23, 26:29)]
+# Directories
+dir <- "C:/Users/msahu/OneDrive - UW/Documents/Research/DGH+MGH/DO_ART_NCD/"
+in_dir <- paste0(dir, "0_data/3_cleaned_data/")
+out_dir <-  paste0(dir, "/3_plots/")
 
-ncd_outcomes <- ncd_merged %>% 
-  select(arm, country, site,
-         baseline_viral_load_result, exit_viral_load_result,
-         baseline_bmi, bmi, 
-         hemoglobin_a1c_result, lipid_result,
-         sbp_mean_Enrollment, sbp_mean_Exit,
-         dbp_mean_Enrollment, dbp_mean_Exit,
-         sbp_diff, bmi_diff)
+# Load data
+ncd_merged <- readRDS(paste0(in_dir,"ncd_merged.rds"))
+ncd_merged_sa <- readRDS(paste0(in_dir,"ncd_merged_subset.rds")) %>% 
+  filter(country == "South Africa")
 
-ncd_outcomes %>%  group_by(arm) %>% descr(stats = "common", transpose = F, headings = FALSE)
-library(naniar)
+# Packages
+pacman::p_load(naniar, ggplot2)
+
+# ------------------------------------------------------------------------------
+
+# Visualize Missingness
+
+ncd_outcomes <- ncd_merged_sa %>% 
+  select(siteR,
+         exit_viral_load_suppressed,
+         #baseline_bmi, 
+         bmi, 
+         hemoglobin_a1c_result, 
+         lipid_result,
+         #sbp_mean_baseline, 
+         sbp_mean_exit,
+         #dbp_mean_baseline, 
+         dbp_mean_exit)
+
+
 vis_miss(ncd_outcomes) 
-gg_miss_fct(x = ncd_outcomes, fct = arm)  + labs(title = "Missing Data by trial arm")
-gg_miss_fct(x = ncd_outcomes, fct = site) + labs(title = "Missing Data by trial site")
-gg_miss_fct(x = ncd_outcomes, fct = country) + labs(title = "Missing Data by Country")
+gg_miss_fct(x = ncd_outcomes, fct = exit_viral_load_suppressed)  + labs(title = "Missing data by viral suppression status")
+ggplot(ncd_outcomes,
+       aes(x = siteR,
+           y = lipid_result)) +
+  geom_miss_point() + 
+  facet_wrap(~exit_viral_load_suppressed)
+
+# Save pdf - by site
+pdf(file = paste0(out_dir, "supplement_missing_data_by_site.pdf"),
+    width = 8, 
+    height = 4) 
+
+gg_miss_fct(x = ncd_outcomes, fct = siteR) + labs(title = "Missing data by trial site")
+
+dev.off()

@@ -24,7 +24,7 @@ invisible(lapply(package.list, library, character.only = TRUE))
 
 # Load data
 
-dir <- "C:/Users/msahu/Documents/Other_Research/DO_ART_NCD/"
+dir <- "C:/Users/msahu/OneDrive - UW/Documents/Research/DGH+MGH/DO_ART_NCD/"
 in_dir <- paste0(dir, "0_data/3_cleaned_data/")
 
 
@@ -51,28 +51,29 @@ p_digits = 3
 ## S2: Additional Descriptive Statistics
 
 + S2, Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
-+ S2, Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site and including Uganda (N = 1315) 
++ S2, Table 2: Descriptive statistics of cardiovascular risk in the DO ART study for South Africa, by viral suppression (N = 1010)
++ S2, Table 3: Descriptive statistics of cardiovascular risk in the DO ART study, by site and including Uganda (N = 1315) 
 
 ## S3: Additional Analysis
 
 + S3, Table 1: Table 3 for clinic arm (unadjusted and adjusted)
 + S3, Table 2: Table 3 for community arm (unadjusted and adjusted)
 + S3, Table 3: Interaction term coefficients 
++ S3, Table 4: Table 3 by gender (adjusted only)
++ S3, EXTRA table: Table 3 by site (adjusted only)
 
 ## S4: Missing Data Analysis
 
 ## S5: Figures
 
 + S5 Figure 1: CVD variables, comparing community follow-up with clinic follow-up
-+ S5 Figure 2: Distribution of cardiovascular risk, by viral suppression status at exit 
-+ S5 Figure 3: CVD variables, comparing VS versus not - CLINIC FOLLOW-UP GROUP
-+ S5 Figure 4: CVD variables, comparing VS versus not - COMMUNITY FOLLOW-UP GROUP
-+ S5 Figure 5: CVD variables, by age 
-
-## Number plugging (rough)
++ S5 Figure 2: Districbution of CVD risk by gender [SEE OTHER FILE]
++ S5 Figure 3: Distribution of cardiovascular risk, by viral suppression status at exit 
++ S5 Figure 4: CVD variables, comparing VS versus not - CLINIC FOLLOW-UP GROUP
++ S5 Figure 5: CVD variables, comparing VS versus not - COMMUNITY FOLLOW-UP GROUP
++ S5 Figure 6: CVD variables, by VS and age? 
 
 ### Page Break
-
 
 ## Appendix Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
 
@@ -242,11 +243,123 @@ flextable_to_rmd(ft)
 
 ```
 
+### Page break
 
+## Appendix Table 2: Descriptive statistics of cardiovascular risk in the DO ART study for South Africa, by viral suppression (N = 1010)
+
+&nbsp;
+
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+# Set up --------------------------------------------------------------------------
+
+headings <- data.frame(
+  section = c("A", "B", "C"),
+  title = c( "", 
+             "ii) Lifestyle and other risk",
+              "iii) Cardiovascular Risk")
+)
+
+# A) Demographics
+A_vars = c(
+  "age_cat","genderR", "educationR"
+  )
+A_var_labels = c(
+  "Age", "Gender", "Education"
+  )
+
+# B) Lifestyle and Other Risk (same as above)
+
+# C) Cardiovascular risk (same as above)
+
+table_vars <- data.frame(
+  
+  var_name = c(A_vars, B_vars, C_vars),
+
+  var_label = c(A_var_labels, B_var_labels, C_var_labels)) %>% 
+  
+  mutate( 
+    
+    section = case_when(
+      var_name %in% c(A_vars) ~ "A",
+      var_name %in% c(B_vars) ~ "B",
+      var_name %in% c(C_vars) ~ "C")
+    )
+  
+
+# Descriptive Proportion Table ----------------------------------------------------
+
+col_headings_freq <- c(
+  "Category",
+  "Virally suppressed \n n (%)",
+  "Not virally suppressed \n n (%)", 
+  "VS unknown \n (%)",
+  "Total \n n (%)"
+  )
+
+
+for (i in unique(headings$section)) {
+  
+  table_subset <- table_vars[table_vars$section==i, ]
+  
+  tableDF <- data.frame(
+        variable = character(),
+        category = character(),
+        vs = character(),
+        not_vs = character(),
+        vs_unknown = character(),
+        Total = character()
+    )
+  
+  for (v in unique(table_subset$var_name)) {
+      
+    data = ncd_merged_subset %>% filter(country == "South Africa")
+    
+    temp <- data %>% 
+      
+      # Format table using Janitor package 
+      tabyl(!!sym(v), exit_viral_load_suppressedR) %>% 
+      adorn_totals(where = "col") %>% 
+      adorn_percentages(denominator = "col") %>% 
+      adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+      adorn_ns(position = "front") %>%
+      as.data.frame() %>% 
+      
+      # Clean up headers
+      rename(category = 1,
+             vs = "Yes",
+             not_vs = "No",
+             vs_unknown = "Missing") %>% 
+      mutate(variable = table_vars[table_vars$var_name == v, "var_label"] ) %>% 
+      select(variable, everything())
+    
+  tableDF <- rbind(tableDF, temp)
+  
+  }
+  
+  # Flextable
+
+ft <- flextable(tableDF) %>%
+  
+  delete_part(part = "header") %>%
+  add_header_row(values = c(headings[headings$section == i, "title"], col_headings_freq))  %>%     
+  align(i = 1, part = "header", align = "center") %>%
+  merge_v(j = "variable") %>%
+  width(width = 1.55) %>%
+  theme_vanilla() %>% 
+  vline(j = c(2, 5), border = fp_border_default(), part = "all")
+
+flextable_to_rmd(ft)  
+
+rm(temp)  
+}
+```
+
+&nbsp;
 
 ### Page break
 
-## Appendix Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315)
+## Appendix Table 3: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315)
 
 &nbsp;
 
@@ -430,7 +543,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v != "smokingR") {
   
-  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + exit_viral_load_suppressed, 
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
               family = poisson, data = vs_subset,
               id = hhid, corstr = "independence") 
   
@@ -444,7 +557,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v == "smokingR") {
   
-  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + exit_viral_load_suppressed, 
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + educationR + exit_viral_load_suppressed, 
               family = poisson, data = vs_subset,
               id = hhid, corstr = "independence") 
   
@@ -543,7 +656,7 @@ for (v in unique(lin_reg_vars$var_name)) {
 
   # Adjusted for site, age, gender, smoking 
   
-  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smokingR + exit_viral_load_suppressed, 
+  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
               family = gaussian, data = vs_subset,
               id = hhid, corstr = "independence") 
   adj.rd <- coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
@@ -667,7 +780,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v != "smokingR") {
   
-  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + exit_viral_load_suppressed, 
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
               family = poisson, data = vs_subset,
               id = hhid, corstr = "independence") 
   
@@ -681,7 +794,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v == "smokingR") {
   
-  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + exit_viral_load_suppressed, 
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + educationR + exit_viral_load_suppressed, 
               family = poisson, data = vs_subset,
               id = hhid, corstr = "independence") 
   
@@ -780,7 +893,7 @@ for (v in unique(lin_reg_vars$var_name)) {
 
   # Adjusted for site, age, gender, smoking 
   
-  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smokingR + exit_viral_load_suppressed, 
+  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
               family = gaussian, data = vs_subset,
               id = hhid, corstr = "independence") 
   adj.rd <- coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
@@ -900,7 +1013,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v != "smokingR") {
   
-  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + exit_viral_load_suppressed*armR, 
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed*armR, 
               family = poisson, data = vs_subset,
               id = hhid, corstr = "independence") 
   
@@ -914,7 +1027,7 @@ for (v in unique(reg_vars$var_name)) {
   
   if (v == "smokingR") {
   
-  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + exit_viral_load_suppressed*armR, 
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + educationR + exit_viral_load_suppressed*armR, 
               family = poisson, data = vs_subset,
               id = hhid, corstr = "independence") 
   
@@ -1013,7 +1126,7 @@ for (v in unique(lin_reg_vars$var_name)) {
 
   # Adjusted for site, age, gender, smoking 
   
-  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smokingR + exit_viral_load_suppressed*armR, 
+  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed*armR, 
               family = gaussian, data = vs_subset,
               id = hhid, corstr = "independence") 
   adj.rd <- coef(adj.lm)[["exit_viral_load_suppressedTRUE:armRCommunity follow-up"]] # Mean Difference
@@ -1069,6 +1182,750 @@ ft
 ** Note, we drop 27 participants without endline viral load available.
 
 ** This is the coefficient for VS * arm
+
+
+## Appendix S3, Table 4: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline, by gender
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+# Subset to South Africa only and clinic arm only!
+
+ncd_merged_women <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
+  filter(country == "South Africa") %>% 
+  mutate(site = factor (site,
+                       levels = c("HSRC",
+                                  "AHRI"))) %>% 
+  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                          arm == "Community arm" ~ "Community follow-up",
+                          arm == "Hybrid arm" ~ "Community follow-up" )) %>% 
+  filter(genderR == "Women") %>% 
+ filter(!is.na(exit_viral_load_result)) # DROP NA for GEE to run
+
+ncd_merged_men <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
+  filter(country == "South Africa") %>% 
+  mutate(site = factor (site,
+                       levels = c("HSRC",
+                                  "AHRI"))) %>% 
+  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                          arm == "Community arm" ~ "Community follow-up",
+                          arm == "Hybrid arm" ~ "Community follow-up" )) %>% 
+  filter(genderR == "Men") %>% 
+filter(!is.na(exit_viral_load_result)) # DROP NA for GEE to run
+
+  
+round_digits = 2
+p_digits = 3
+
+# POISSON REGRESSIONS --------------------------------------------------------------------------
+
+reg_vars <- data.frame(
+  
+  var_name = c(
+    "bp_hi_exit", 
+    "overwt_exit", 
+    "a1c_hi_exit",
+    "smokingR"
+   ),
+
+  var_label = c(
+    "Elevated BP",
+    "Overweight (BMI >= 25)",
+    "Elevated blood sugar (a1c >= 5.7)",
+    "Current smoker [baseline]"
+  ))
+  
+regressionDF <- data.frame(
+        variable = character(),
+        rr = numeric(),
+        rr_ci = character(),
+        rr_p = numeric(),
+        adj.rr = character(),
+        adj.rr_ci = character(), 
+        adj.rr_p = character() 
+    )
+
+ 
+for (v in unique(reg_vars$var_name)) {
+  
+  if (v != "smokingR") {
+    
+  # Women
+  m <- geeglm(get(v) ~ site + age_cat + smokingR + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_women,
+              id = hhid, corstr = "independence") 
+  m.rr <- exp(coef(m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  m.se <- summary(m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  m.rr_ci <- exp(c(coef(m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*m.se, 
+                  coef(m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*m.se)) # RR: 95% CI 
+  m.p <- summary(m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  # Men 
+  adj.m <- geeglm(get(v) ~ site + age_cat + smokingR + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_men,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  if (v == "smokingR") {
+  
+  # Women
+  m <- geeglm(get(v) ~ site + age_cat + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_women,
+              id = hhid, corstr = "independence") 
+  m.rr <- exp(coef(m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  m.se <- summary(m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  m.rr_ci <- exp(c(coef(m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*m.se, 
+                  coef(m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*m.se)) # RR: 95% CI 
+  m.p <- summary(m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  # Men
+  adj.m <- geeglm(get(v) ~ site + age_cat + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_men,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+                as.numeric(round(m.rr, round_digits)), 
+                paste0("(",
+                       as.numeric(round(m.rr_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(m.rr_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(m.p, p_digits)),
+                as.numeric(round(adj.rr, round_digits)), 
+                paste0("(",
+                       as.numeric(round(adj.rr_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(adj.rr_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(adj.p, p_digits)))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+  
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Relative Risk",
+    "95% CI",
+    "p-value",
+    " Relative Risk",
+    " 95% CI",
+    " p-value")
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Women (n = 505)", "Men (n = 505)"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla() %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+
+# LINEAR REGRESSIONS -------------------------------------------------------------------------------
+
+lin_reg_vars <- data.frame(
+  
+  var_name = c(
+    "sbp_mean_exit",
+    "dbp_mean_exit", 
+    "bmi", 
+    "hemoglobin_a1c_result",
+    "lipid_result"),
+
+  var_label = c(
+    "Systolic blood pressure (mmHg)",
+    "Diastolic blood pressure (mmHg)",
+    "BMI (kg/m^2)",
+    "Hemoglobin A1c (%)",
+    "Total cholesterol (mg/dL)") 
+)
+  
+
+regressionDF <- data.frame(
+        variable = character(),
+        rd = numeric(),
+        rd_ci = character(),
+        rd_p = numeric(),
+        adj.rd = character(),
+        adj.rd_ci = character(), 
+        adj.rd_p = character() 
+)
+ 
+ 
+for (v in unique(lin_reg_vars$var_name)) {
+  
+   # Midlands
+  lm <- geeglm(get(v) ~ site + age_cat + smokingR + educationR + exit_viral_load_suppressed, 
+              family = gaussian, data = ncd_merged_women,
+              id = hhid, corstr = "independence") 
+  rd <- coef(lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  lm.se <- summary(lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  rd_ci <- c(coef(lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*lm.se, 
+                coef(lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*lm.se) # 95% CI
+  rd_p <- summary(lm)$coef["exit_viral_load_suppressedTRUE",4]
+
+  # Northern
+  adj.lm <- geeglm(get(v) ~  site + age_cat + smokingR + educationR + exit_viral_load_suppressed, 
+              family = gaussian, data = ncd_merged_men,
+              id = hhid, corstr = "independence") 
+  adj.rd <- coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  adj.lm.se <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rd_ci <- c(coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.lm.se, 
+                  coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.lm.se) # 95% CI
+  adj.rd_p <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  temp_row <- c(lin_reg_vars[lin_reg_vars$var_name == v, "var_label"], 
+                as.numeric(round(rd, round_digits)), 
+                paste0("(",
+                       as.numeric(round(rd_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(rd_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(rd_p, p_digits)),
+                as.numeric(round(adj.rd, round_digits)), 
+                paste0("(",
+                       as.numeric(round(adj.rd_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(adj.rd_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(adj.rd_p, p_digits)))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Mean Difference",
+    "95% CI",
+    "p-value",
+    " Mean Difference",
+    " 95% CI",
+    " p-value")
+
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Women (n = 505)", "Men (n = 505)"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla()  %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+```
+
+
+### Page Break
+
+## Appendix S3, Table 5: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline CONTROLLING FOR CD4+ COUNT, in South Africa (N = 983).
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+# Subset to South Africa only!!
+# NOTE: we combine the community and hybrid arm (community follow-up), compared to clinic
+
+ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
+  filter(country == "South Africa") %>% 
+  mutate(site = factor (site,
+                       levels = c("HSRC",
+                                  "AHRI"))) %>% 
+  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                          arm == "Community arm" ~ "Community follow-up",
+                          arm == "Hybrid arm" ~ "Community follow-up" ))
+  
+  
+round_digits = 2
+p_digits = 3
+
+# DROP NA for GEE to run
+
+vs_subset <- ncd_merged_subset %>% 
+  filter(!is.na(exit_viral_load_result))
+
+# POISSON REGRESSIONS --------------------------------------------------------------------------
+
+reg_vars <- data.frame(
+  
+  var_name = c(
+    "bp_hi_exit", 
+    "overwt_exit", 
+    "a1c_hi_exit",
+    "smokingR"
+   ),
+
+  var_label = c(
+    "Elevated BP",
+    "Overweight (BMI >= 25)",
+    "Elevated blood sugar (a1c >= 5.7)",
+    "Current smoker [baseline]"
+  ))
+  
+regressionDF <- data.frame(
+        variable = character(),
+        rr = numeric(),
+        rr_ci = character(),
+        rr_p = numeric(),
+        adj.rr = character(),
+        adj.rr_ci = character(), 
+        adj.rr_p = character() 
+    )
+
+ 
+for (v in unique(reg_vars$var_name)) {
+
+  # Adjusted for site only
+  m <- geeglm(get(v) ~ site + exit_viral_load_suppressed, 
+              family = poisson, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  m.rr <- exp(coef(m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  m.se <- summary(m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  m.rr_ci <- exp(c(coef(m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*m.se, 
+                  coef(m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*m.se)) # RR: 95% CI 
+  m.p <- summary(m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  # Adjusted for site, age, gender, smoking 
+  
+  if (v != "smokingR") {
+  
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + smokingR + exit_viral_load_suppressed + educationR + baseline_cd4, 
+              family = poisson, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  if (v == "smokingR") {
+  
+  adj.m <- geeglm(get(v) ~ site + age_cat + genderR + exit_viral_load_suppressed + educationR + baseline_cd4, 
+              family = poisson, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+                format(round(m.rr, round_digits), nsmall = round_digits), 
+                paste0("(",
+                       format(round(m.rr_ci, round_digits), nsmall = round_digits)[1], 
+                       ",",
+                       format(round(m.rr_ci, round_digits), nsmall = round_digits)[2],
+                       ")"),
+                format(round(m.p, p_digits), nsmall = p_digits),
+                format(round(adj.rr, round_digits), nsmall = round_digits), 
+                paste0("(",
+                       format(round(adj.rr_ci, round_digits), nsmall = round_digits)[1], 
+                       ",",
+                       format(round(adj.rr_ci, round_digits), nsmall = round_digits)[2],
+                       ")"),
+                format(round(adj.p, p_digits), nsmall = p_digits))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+  
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Relative Risk",
+    "95% CI",
+    "p-value",
+    "Adj. Relative Risk",
+    "Adj. 95% CI",
+    "Adj. p-value")
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Unadjusted Analysis", "Adjusted Analysis"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla() %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+
+# LINEAR REGRESSIONS -------------------------------------------------------------------------------
+
+lin_reg_vars <- data.frame(
+  
+  var_name = c(
+    "sbp_mean_exit",
+    "dbp_mean_exit", 
+    "bmi", 
+    "hemoglobin_a1c_result",
+    "lipid_result"),
+
+  var_label = c(
+    "Systolic blood pressure (mmHg)",
+    "Diastolic blood pressure (mmHg)",
+    "BMI (kg/m^2)",
+    "Hemoglobin A1c (%)",
+    "Total cholesterol (mg/dL)") 
+)
+  
+
+regressionDF <- data.frame(
+        variable = character(),
+        rd = numeric(),
+        rd_ci = character(),
+        rd_p = numeric(),
+        adj.rd = character(),
+        adj.rd_ci = character(), 
+        adj.rd_p = character() 
+)
+ 
+ 
+for (v in unique(lin_reg_vars$var_name)) {
+  
+   # Adjusted for site only
+  lm <- geeglm(get(v) ~ site + exit_viral_load_suppressed, 
+              family = gaussian, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  rd <- coef(lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  lm.se <- summary(lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  rd_ci <- c(coef(lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*lm.se, 
+                coef(lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*lm.se) # 95% CI
+  rd_p <- summary(lm)$coef["exit_viral_load_suppressedTRUE",4]
+
+  # Adjusted for site, age, gender, smoking 
+  
+  adj.lm <- geeglm(get(v) ~  site + age_cat + genderR + smoking_status + exit_viral_load_suppressed + educationR + baseline_cd4, 
+              family = gaussian, data = vs_subset,
+              id = hhid, corstr = "independence") 
+  adj.rd <- coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  adj.lm.se <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rd_ci <- c(coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.lm.se, 
+                  coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.lm.se) # 95% CI
+  adj.rd_p <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  temp_row <- c(lin_reg_vars[lin_reg_vars$var_name == v, "var_label"], 
+                format(round(rd, round_digits), nsmall = round_digits), 
+                paste0("(",
+                       format(round(rd_ci, round_digits), nsmall = round_digits)[1], 
+                       ",",
+                       format(round(rd_ci, round_digits), nsmall = round_digits)[2],
+                       ")"),
+                format(round(rd_p, p_digits), nsmall = p_digits),
+                format(round(adj.rd, round_digits), nsmall = round_digits), 
+                paste0("(",
+                       format(round(adj.rd_ci, round_digits), nsmall = round_digits)[1], 
+                       ",",
+                       format(round(adj.rd_ci, round_digits), nsmall = round_digits)[2],
+                       ")"),
+                format(round(adj.rd_p, p_digits), nsmall = p_digits))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Mean Difference",
+    "95% CI",
+    "p-value",
+    "Adj. Mean Difference",
+    "Adj. 95% CI",
+    "Adj. p-value")
+
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Unadjusted Analysis", "Adjusted Analysis"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla()  %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+```
+
+## Appendix S3, EXTRA table: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline, by site 
+
+```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
+
+# Subset to South Africa only and clinic arm only!
+
+ncd_merged_midlands <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
+  filter(country == "South Africa") %>% 
+  mutate(site = factor (site,
+                       levels = c("HSRC",
+                                  "AHRI"))) %>% 
+  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                          arm == "Community arm" ~ "Community follow-up",
+                          arm == "Hybrid arm" ~ "Community follow-up" )) %>% 
+  filter(site == "HSRC") %>% 
+filter(!is.na(exit_viral_load_result)) # DROP NA for GEE to run
+
+ncd_merged_northern <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
+  filter(country == "South Africa") %>% 
+  mutate(site = factor (site,
+                       levels = c("HSRC",
+                                  "AHRI"))) %>% 
+  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                          arm == "Community arm" ~ "Community follow-up",
+                          arm == "Hybrid arm" ~ "Community follow-up" )) %>% 
+  filter(site == "AHRI") %>% 
+filter(!is.na(exit_viral_load_result)) # DROP NA for GEE to run
+
+  
+round_digits = 2
+p_digits = 3
+
+# POISSON REGRESSIONS --------------------------------------------------------------------------
+
+reg_vars <- data.frame(
+  
+  var_name = c(
+    "bp_hi_exit", 
+    "overwt_exit", 
+    "a1c_hi_exit",
+    "smokingR"
+   ),
+
+  var_label = c(
+    "Elevated BP",
+    "Overweight (BMI >= 25)",
+    "Elevated blood sugar (a1c >= 5.7)",
+    "Current smoker [baseline]"
+  ))
+  
+regressionDF <- data.frame(
+        variable = character(),
+        rr = numeric(),
+        rr_ci = character(),
+        rr_p = numeric(),
+        adj.rr = character(),
+        adj.rr_ci = character(), 
+        adj.rr_p = character() 
+    )
+
+ 
+for (v in unique(reg_vars$var_name)) {
+  
+  if (v != "smokingR") {
+    
+  # Midlands
+  m <- geeglm(get(v) ~ age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_midlands,
+              id = hhid, corstr = "independence") 
+  m.rr <- exp(coef(m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  m.se <- summary(m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  m.rr_ci <- exp(c(coef(m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*m.se, 
+                  coef(m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*m.se)) # RR: 95% CI 
+  m.p <- summary(m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  # Northers  
+  adj.m <- geeglm(get(v) ~ age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_northern,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  if (v == "smokingR") {
+  
+  # Midlands  
+  m <- geeglm(get(v) ~ age_cat + genderR + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_midlands,
+              id = hhid, corstr = "independence") 
+  m.rr <- exp(coef(m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  m.se <- summary(m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  m.rr_ci <- exp(c(coef(m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*m.se, 
+                  coef(m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*m.se)) # RR: 95% CI 
+  m.p <- summary(m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  # Northern
+  adj.m <- geeglm(get(v) ~ age_cat + genderR + educationR + exit_viral_load_suppressed, 
+              family = poisson, data = ncd_merged_northern,
+              id = hhid, corstr = "independence") 
+  
+  adj.rr <- exp(coef(adj.m)[["exit_viral_load_suppressedTRUE"]]) # Relative Risk
+  adj.se <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rr_ci <- exp(c(coef(adj.m)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.se, 
+                  coef(adj.m)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
+  adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  }
+  
+  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+                as.numeric(round(m.rr, round_digits)), 
+                paste0("(",
+                       as.numeric(round(m.rr_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(m.rr_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(m.p, p_digits)),
+                as.numeric(round(adj.rr, round_digits)), 
+                paste0("(",
+                       as.numeric(round(adj.rr_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(adj.rr_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(adj.p, p_digits)))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+  
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Relative Risk",
+    "95% CI",
+    "p-value",
+    ".Relative Risk",
+    ".95% CI",
+    ".p-value")
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Midlands KZN", "Northern KZN"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla() %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+
+# LINEAR REGRESSIONS -------------------------------------------------------------------------------
+
+lin_reg_vars <- data.frame(
+  
+  var_name = c(
+    "sbp_mean_exit",
+    "dbp_mean_exit", 
+    "bmi", 
+    "hemoglobin_a1c_result",
+    "lipid_result"),
+
+  var_label = c(
+    "Systolic blood pressure (mmHg)",
+    "Diastolic blood pressure (mmHg)",
+    "BMI (kg/m^2)",
+    "Hemoglobin A1c (%)",
+    "Total cholesterol (mg/dL)") 
+)
+  
+
+regressionDF <- data.frame(
+        variable = character(),
+        rd = numeric(),
+        rd_ci = character(),
+        rd_p = numeric(),
+        adj.rd = character(),
+        adj.rd_ci = character(), 
+        adj.rd_p = character() 
+)
+ 
+ 
+for (v in unique(lin_reg_vars$var_name)) {
+  
+   # Midlands
+  lm <- geeglm(get(v) ~ age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
+              family = gaussian, data = ncd_merged_midlands,
+              id = hhid, corstr = "independence") 
+  rd <- coef(lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  lm.se <- summary(lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  rd_ci <- c(coef(lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*lm.se, 
+                coef(lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*lm.se) # 95% CI
+  rd_p <- summary(lm)$coef["exit_viral_load_suppressedTRUE",4]
+
+  # Northern
+  adj.lm <- geeglm(get(v) ~  age_cat + genderR + smokingR + educationR + exit_viral_load_suppressed, 
+              family = gaussian, data = ncd_merged_northern,
+              id = hhid, corstr = "independence") 
+  adj.rd <- coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] # Mean Difference
+  adj.lm.se <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",2] # SE
+  adj.rd_ci <- c(coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] - qnorm(0.975)*adj.lm.se, 
+                  coef(adj.lm)[["exit_viral_load_suppressedTRUE"]] + qnorm(0.975)*adj.lm.se) # 95% CI
+  adj.rd_p <- summary(adj.lm)$coef["exit_viral_load_suppressedTRUE",4]
+  
+  temp_row <- c(lin_reg_vars[lin_reg_vars$var_name == v, "var_label"], 
+                as.numeric(round(rd, round_digits)), 
+                paste0("(",
+                       as.numeric(round(rd_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(rd_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(rd_p, p_digits)),
+                as.numeric(round(adj.rd, round_digits)), 
+                paste0("(",
+                       as.numeric(round(adj.rd_ci, round_digits))[1], 
+                       ",",
+                       as.numeric(round(adj.rd_ci, round_digits))[2],
+                       ")"),
+                as.numeric(round(adj.rd_p, p_digits)))
+  
+  regressionDF <- rbind(regressionDF, temp_row)
+
+}
+  
+names(regressionDF) =
+  c("Variable",
+    "Mean Difference",
+    "95% CI",
+    "p-value",
+    ".Mean Difference",
+    ".95% CI",
+    ".p-value")
+
+
+# Word Doc output
+ft <- flextable(regressionDF) %>% 
+  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+  add_header_row(values = c("", "Midlands KZN", "Northern KZN"), 
+                 top = T, colwidths = c(1, 3, 3)) %>% 
+  width(width = 1.1) %>%
+  width(j = 1, width = 2.5) %>%
+  theme_vanilla()  %>% 
+  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
+  align(i =1, align = "center", part = "header") 
+
+ft
+```
 
 ## S4: Additional Figures
 
@@ -1320,7 +2177,135 @@ ggarrange(p1, p3, p4, p5, # skip DBP
 
 ### Page Break
 
-## S4 Figure 3: Distribution, by VS status at endline [dashed lines are group medians] - CLINIC ONLY
+## S4 Figure 3: Distribution, by VS status at endline [dashed lines are group medians] 
+
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+df = ncd_merged_subset %>%  
+  filter(exit_viral_load_suppressedR != "Missing") 
+
+alpha_level = 0.5
+
+# Excluding missing
+
+vs_colors = c("#00A08A", "#FF0000")
+vs_title = "Virally suppressed at exit"
+
+# SBP        
+
+cvd_cutoff1 = 120
+cvd_cutoff2 = NA
+cvd_label = "Systolic BP (mmHg)"
+
+mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(sbp_mean_exit, na.rm = T))
+                
+p1 <-  ggplot(df, aes(x = sbp_mean_exit, fill = exit_viral_load_suppressedR)) + 
+      geom_density(alpha = alpha_level) +   
+      scale_fill_manual(values = vs_colors) +
+      xlab(cvd_label) +
+      geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+      geom_vline(data=mu, aes(xintercept=grp.median, color=exit_viral_load_suppressedR),
+                 linetype="dashed") +
+      scale_color_manual(values= vs_colors) +
+      guides(fill=guide_legend(title= vs_title)) +
+      guides(color=guide_legend(title=vs_title)) +
+      theme_bw()  +
+      theme(legend.position = lp)
+    
+# DBP
+
+cvd_cutoff1 = 80
+cvd_cutoff2 = NA
+cvd_label = "Diastolic BP (mmHg)"
+
+mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(dbp_mean_exit, na.rm = T))
+                
+p2 <-  ggplot(df, aes(x = dbp_mean_exit, fill = exit_viral_load_suppressedR)) + 
+      geom_density(alpha = alpha_level) +   
+      scale_fill_manual(values= vs_colors) +
+      xlab(cvd_label) +
+      geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+      geom_vline(data=mu, aes(xintercept=grp.median, color=exit_viral_load_suppressedR),
+                 linetype="dashed") +
+      scale_color_manual(values= vs_colors) +
+      guides(fill=guide_legend(title=vs_title)) +
+      guides(color=guide_legend(title=vs_title)) +
+      theme_bw()  +
+      theme(legend.position = lp)
+
+# BMI
+
+cvd_cutoff1 = 25
+cvd_cutoff2 = 30
+cvd_label = "BMI (kg/m^2)"
+
+mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(bmi, na.rm = T))
+                
+p3 <-  ggplot(df, aes(x = bmi, fill = exit_viral_load_suppressedR)) + 
+      geom_density(alpha = alpha_level) +   
+      scale_fill_manual(values = vs_colors) +
+      xlab(cvd_label) +
+      geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+      geom_vline(data=mu, aes(xintercept=grp.median, color=exit_viral_load_suppressedR),
+                 linetype="dashed") +
+      scale_color_manual(values = vs_colors) +
+      guides(fill=guide_legend(title=vs_title)) +
+      guides(color=guide_legend(title=vs_title)) +
+      theme_bw()  +
+      theme(legend.position = lp)
+
+# A1c
+
+cvd_cutoff1 = 5.7
+cvd_cutoff2 = 6.5
+cvd_label = "Hemoglobin A1c (%)"
+
+mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(hemoglobin_a1c_result, na.rm = T))
+                
+p4 <-  ggplot(df, aes(x = hemoglobin_a1c_result, fill = exit_viral_load_suppressedR)) + 
+      geom_density(alpha = alpha_level) +   
+      scale_fill_manual(values = vs_colors) +
+      xlab(cvd_label) +
+      geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+      geom_vline(data=mu, aes(xintercept=grp.median, color=exit_viral_load_suppressedR),
+                 linetype="dashed") +
+      scale_color_manual(values = vs_colors) +
+      guides(fill=guide_legend(title=vs_title)) +
+      guides(color=guide_legend(title=vs_title)) +
+      theme_bw()  +
+      theme(legend.position = lp)
+
+# Cholesterol
+
+
+cvd_cutoff1 = 200
+cvd_cutoff2 = 240
+cvd_label = "Total cholesterol (mg/dL)"
+
+mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(lipid_result, na.rm = T))
+                
+p5 <-  ggplot(df, aes(x = lipid_result, fill = exit_viral_load_suppressedR)) + 
+      geom_density(alpha = alpha_level) +   
+      scale_fill_manual(values = vs_colors) +
+      xlab(cvd_label) +
+      geom_vline(xintercept = c(cvd_cutoff1, cvd_cutoff2), size = .6) +
+      geom_vline(data=mu, aes(xintercept=grp.median, color=exit_viral_load_suppressedR),
+                 linetype="dashed") +
+      scale_color_manual(values = vs_colors) +
+      guides(fill=guide_legend(title=vs_title)) +
+      guides(color=guide_legend(title=vs_title)) +
+      theme_bw()  +
+      theme(legend.position = lp)
+
+# Arrange!
+
+ggarrange(p1, p3, p4, p5, # skip DBP
+          ncol = 2)
+
+```
+
+### Page Break
+
+## S4 Figure 4: Distribution, by VS status at endline [dashed lines are group medians] - CLINIC ONLY
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 df = ncd_merged_subset %>%  
@@ -1449,7 +2434,7 @@ ggarrange(p1, p3, p4, p5, # skip DBP
 
 ### Page break
 
-## S4 Figure 3: Distribution, by VS status at endline [dashed lines are group medians] - COMMUNITY ONLY
+## S4 Figure 5: Distribution, by VS status at endline [dashed lines are group medians] - COMMUNITY ONLY
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 df = ncd_merged_subset %>%  
@@ -1579,7 +2564,7 @@ ggarrange(p1, p3, p4, p5, # skip DBP
 
 ### Page Break
 
-## S4 Figure 5: Distribution of CVD variables by age
+## S4 Figure 6: Distribution of CVD variables by age
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 df = ncd_merged_subset %>%
@@ -1713,13 +2698,126 @@ ggarrange(p1, p3, p4, p5, # skip DBP
           ncol = 2)
 
 ```
-```{r, include = F, echo = F}
-# NUMBER PLUGGING (rough)
+### Page Break
 
-# household correlation
-unique(ncd_merged_subset$hhid)
+## S4 Figure 7: Distribution of CVD variables by education
 
-ncd_merged_subset %>%  filter(armR == "Community follow-up") %>%filter(is.na(exit_viral_load_result)) %>%  nrow()
+```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
+df = ncd_merged_subset %>% filter(exit_viral_load_suppressedR != "Missing")
 
-ncd_merged_subset %>%  filter(armR == "Clinic follow-up") %>%  filter(is.na(exit_viral_load_result)) %>%  nrow()
+alpha_low = 0.7
+alpha_hi = 0.8
+point_size = 2
+lp = "bottom" # legend position, for all distribution figures
+
+# Excluding missing
+
+vs_colors = c("#00A08A", "#FF0000")
+vs_title = "Virally suppressed at exit"
+
+# SBP        
+
+cvd_cutoff1 = 120
+cvd_cutoff2 = NA
+cvd_label = "Systolic BP (mmHg)"
+                
+p1 <- ggplot(df, aes(x = education, y = sbp_mean_exit, fill = exit_viral_load_suppressedR)) +
+  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
+  scale_fill_manual(values = vs_colors)+
+  ylab(cvd_label) + xlab("Education") +
+  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
+  scale_color_manual(values = vs_colors) +
+  scale_fill_manual(values = vs_colors) +
+  guides(fill=guide_legend(title=vs_title)) +
+  guides(color=guide_legend(title=vs_title)) +
+  theme_bw() +
+  theme(legend.position = lp)
+
+    
+# DBP
+
+cvd_cutoff1 = 80
+cvd_cutoff2 = NA
+cvd_label = "Diastolic BP (mmHg)"
+                
+p2 <-  ggplot(df, aes(x = education, y = dbp_mean_exit, fill = exit_viral_load_suppressedR)) +
+  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
+  scale_fill_manual(values = vs_colors)+
+  ylab(cvd_label) + xlab("Education") +
+  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
+  scale_color_manual(values = vs_colors) +
+  scale_fill_manual(values = vs_colors) +
+  guides(fill=guide_legend(title=vs_title)) +
+  guides(color=guide_legend(title=vs_title)) +
+  theme_bw() +
+  theme(legend.position = lp)
+
+
+# BMI
+
+cvd_cutoff1 = 25
+cvd_cutoff2 = 30
+cvd_label = "BMI (kg/m^2)"
+                
+p3 <-  ggplot(df, aes(x = education, y = bmi, fill = exit_viral_load_suppressedR)) +
+  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
+  scale_fill_manual(values = vs_colors)+
+  ylab(cvd_label) + xlab("Education") +
+  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
+  scale_color_manual(values = vs_colors) +
+  scale_fill_manual(values = vs_colors) +
+  guides(fill=guide_legend(title=vs_title)) +
+  guides(color=guide_legend(title=vs_title)) +
+  theme_bw() +
+  theme(legend.position = lp)
+
+
+# A1c
+
+cvd_cutoff1 = 5.7
+cvd_cutoff2 = 6.5
+cvd_label = "Hemoglobin A1c (%)"
+
+mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(hemoglobin_a1c_result, na.rm = T))
+                
+p4 <-  ggplot(df, aes(x = education, y = hemoglobin_a1c_result, fill = exit_viral_load_suppressedR)) +
+  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
+  scale_fill_manual(values = vs_colors)+
+  ylab(cvd_label) + xlab("Education") +
+  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
+  scale_color_manual(values = vs_colors) +
+  scale_fill_manual(values = vs_colors) +
+  guides(fill=guide_legend(title=vs_title)) +
+  guides(color=guide_legend(title=vs_title)) +
+  theme_bw() +
+  theme(legend.position = lp)
+
+
+# Cholesterol
+
+
+cvd_cutoff1 = 200
+cvd_cutoff2 = 240
+cvd_label = "Total cholesterol (mg/dL)"
+
+mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(lipid_result, na.rm = T))
+
+p5 <-  ggplot(df, aes(x = education, y = lipid_result, fill = exit_viral_load_suppressedR)) +
+  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
+  scale_fill_manual(values = vs_colors)+
+  ylab(cvd_label) + xlab("Education") +
+  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
+  scale_color_manual(values = vs_colors) +
+  scale_fill_manual(values = vs_colors) +
+  guides(fill=guide_legend(title=vs_title)) +
+  guides(color=guide_legend(title=vs_title)) +
+  theme_bw() +
+  theme(legend.position = lp)
+
+
+# Arrange!
+
+ggarrange(p1, p3, p4, p5, # skip DBP
+          ncol = 2)
+
 ```
