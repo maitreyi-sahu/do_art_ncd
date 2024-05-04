@@ -73,7 +73,8 @@ p_digits = 3
 + S5 Figure 3: Distribution of cardiovascular risk, by viral suppression status at exit 
 + S5 Figure 4: CVD variables, comparing VS versus not - CLINIC FOLLOW-UP GROUP
 + S5 Figure 5: CVD variables, comparing VS versus not - COMMUNITY FOLLOW-UP GROUP
-+ S5 Figure 6: CVD variables, by VS and age? 
++ S5 Figure 6: CVD variables, by VS and age
++ S5 Figure 7: Distribution of CVD variables by education
 
 ### Page Break
 
@@ -2621,7 +2622,7 @@ ft
 ## S4: Additional Figures
 
 
-## S4 Figure 1: Distribution of clinical CVD measures, by arm [dashed lines are group medians]
+## S5 Figure 1: Distribution of clinical CVD measures, by arm [dashed lines are group medians]
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 
@@ -2632,7 +2633,7 @@ make_density_figs(ncd_merged_subset, "armR")
 
 ### Page Break
 
-## S4 Figure 2: Distribution of cardiovascular risk, by gender [dashed lines are group medians]
+## S5 Figure 2: Distribution of cardiovascular risk, by gender [dashed lines are group medians]
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 
@@ -2643,7 +2644,7 @@ make_density_figs(ncd_merged_subset, "genderR")
 
 ### Page Break
 
-## S4 Figure 3: Distribution, by VS status at endline [dashed lines are group medians] 
+## S5 Figure 3: Distribution, by VS status at endline [dashed lines are group medians] 
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 
@@ -2653,7 +2654,7 @@ make_density_figs(ncd_merged_subset, "exit_viral_load_suppressedR")
 
 ### Page Break
 
-## S4 Figure 4: Distribution, by VS status at endline [dashed lines are group medians] - CLINIC ONLY
+## S5 Figure 4: Distribution, by VS status at endline [dashed lines are group medians] - CLINIC ONLY
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 
@@ -2663,7 +2664,7 @@ make_density_figs(ncd_merged_subset %>% filter(armR == "Community follow-up"), "
 
 ### Page break
 
-## S4 Figure 5: Distribution, by VS status at endline [dashed lines are group medians] - COMMUNITY ONLY
+## S5 Figure 5: Distribution, by VS status at endline [dashed lines are group medians] - COMMUNITY ONLY
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 
@@ -2673,133 +2674,20 @@ make_density_figs(ncd_merged_subset %>% filter(armR == "Community follow-up"), "
 
 ### Page Break
 
-## S4 Figure 6: Distribution of CVD variables by age
+## S5 Figure 6: Distribution of CVD variables by age
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
 
+make_distribution_figs(ncd_merged_subset, "age", "exit_viral_load_suppressedR")
 
 ```
 
 ### Page Break
 
-## S4 Figure 7: Distribution of CVD variables by education
+## S5 Figure 7: Distribution of CVD variables by education
 
 ```{r, echo = F, fig.height = 3.4, fig.width = 10, warning = F, message = F, results = 'hide'}
-df = ncd_merged_subset %>% filter(exit_viral_load_suppressedR != "Missing")
 
-alpha_low = 0.7
-alpha_hi = 0.8
-point_size = 2
-lp = "bottom" # legend position, for all distribution figures
-
-# Excluding missing
-
-vs_colors = c("#00A08A", "#FF0000")
-vs_title = "Virally suppressed at exit"
-
-# SBP        
-
-cvd_cutoff1 = 120
-cvd_cutoff2 = NA
-cvd_label = "Systolic BP (mmHg)"
-                
-p1 <- ggplot(df, aes(x = education, y = sbp_mean_exit, fill = exit_viral_load_suppressedR)) +
-  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
-  scale_fill_manual(values = vs_colors)+
-  ylab(cvd_label) + xlab("Education") +
-  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
-  scale_color_manual(values = vs_colors) +
-  scale_fill_manual(values = vs_colors) +
-  guides(fill=guide_legend(title=vs_title)) +
-  guides(color=guide_legend(title=vs_title)) +
-  theme_bw() +
-  theme(legend.position = lp)
-
-    
-# DBP
-
-cvd_cutoff1 = 80
-cvd_cutoff2 = NA
-cvd_label = "Diastolic BP (mmHg)"
-                
-p2 <-  ggplot(df, aes(x = education, y = dbp_mean_exit, fill = exit_viral_load_suppressedR)) +
-  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
-  scale_fill_manual(values = vs_colors)+
-  ylab(cvd_label) + xlab("Education") +
-  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
-  scale_color_manual(values = vs_colors) +
-  scale_fill_manual(values = vs_colors) +
-  guides(fill=guide_legend(title=vs_title)) +
-  guides(color=guide_legend(title=vs_title)) +
-  theme_bw() +
-  theme(legend.position = lp)
-
-
-# BMI
-
-cvd_cutoff1 = 25
-cvd_cutoff2 = 30
-cvd_label = "BMI (kg/m^2)"
-                
-p3 <-  ggplot(df, aes(x = education, y = bmi, fill = exit_viral_load_suppressedR)) +
-  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
-  scale_fill_manual(values = vs_colors)+
-  ylab(cvd_label) + xlab("Education") +
-  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
-  scale_color_manual(values = vs_colors) +
-  scale_fill_manual(values = vs_colors) +
-  guides(fill=guide_legend(title=vs_title)) +
-  guides(color=guide_legend(title=vs_title)) +
-  theme_bw() +
-  theme(legend.position = lp)
-
-
-# A1c
-
-cvd_cutoff1 = 5.7
-cvd_cutoff2 = 6.5
-cvd_label = "Hemoglobin A1c (%)"
-
-mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(hemoglobin_a1c_result, na.rm = T))
-                
-p4 <-  ggplot(df, aes(x = education, y = hemoglobin_a1c_result, fill = exit_viral_load_suppressedR)) +
-  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
-  scale_fill_manual(values = vs_colors)+
-  ylab(cvd_label) + xlab("Education") +
-  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
-  scale_color_manual(values = vs_colors) +
-  scale_fill_manual(values = vs_colors) +
-  guides(fill=guide_legend(title=vs_title)) +
-  guides(color=guide_legend(title=vs_title)) +
-  theme_bw() +
-  theme(legend.position = lp)
-
-
-# Cholesterol
-
-
-cvd_cutoff1 = 200
-cvd_cutoff2 = 240
-cvd_label = "Total cholesterol (mg/dL)"
-
-mu <- plyr::ddply(df, "exit_viral_load_suppressedR", summarise, grp.median=median(lipid_result, na.rm = T))
-
-p5 <-  ggplot(df, aes(x = education, y = lipid_result, fill = exit_viral_load_suppressedR)) +
-  geom_boxplot(varwidth = TRUE, alpha = 0.7)  +
-  scale_fill_manual(values = vs_colors)+
-  ylab(cvd_label) + xlab("Education") +
-  geom_hline(yintercept = c(cvd_cutoff1, cvd_cutoff2), linetype = "dashed", size = .6) +
-  scale_color_manual(values = vs_colors) +
-  scale_fill_manual(values = vs_colors) +
-  guides(fill=guide_legend(title=vs_title)) +
-  guides(color=guide_legend(title=vs_title)) +
-  theme_bw() +
-  theme(legend.position = lp)
-
-
-# Arrange!
-
-ggarrange(p1, p3, p4, p5, # skip DBP
-          ncol = 2)
+make_distribution_figs(ncd_merged_subset, "education", "exit_viral_load_suppressedR")
 
 ```
