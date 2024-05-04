@@ -35,7 +35,7 @@ out_dir <- paste0(dir, "0_data/3_cleaned_data/")
 
 # Load data
 
-ncd <- read.csv(paste0(in_dir,"doart_ncd_MS_v2.csv"), stringsAsFactors = T) %>% setDT() 
+ncd <- read.csv(paste0(in_dir,"doart_ncd_MS_v3.csv"), stringsAsFactors = T) %>% setDT() 
 bp <- read.csv(paste0(in_dir, "doart_blood_pressure_MS.csv")) %>%  setDT() 
 health_cond <- read.csv(paste0(in_dir, "doart_health_conditions_MS.csv")) %>%  setDT() 
 meds <- read.csv(paste0(in_dir, "doart_conmeds_MS.csv")) %>%  setDT() 
@@ -239,8 +239,8 @@ ncd_cvd_subset <- ncd_cvd_subset %>%
 # Merge back with main dataset, recode NA as "unknown"
 
 ncd_merged <- ncd_merged %>% 
-  left_join(ncd_cvd_subset[ , c("pid", "who_cvd_risk_exit")], by = "pid") 
-%>%  mutate(who_cvd_risk_exit = ifelse(is.na(who_cvd_risk_exit), "Missing", who_cvd_risk_exit))
+  left_join(ncd_cvd_subset[ , c("pid", "who_cvd_risk_exit")], by = "pid") %>%  
+  mutate(who_cvd_risk_exit = ifelse(is.na(who_cvd_risk_exit), "Missing", who_cvd_risk_exit))
   
 # Create binary "elevated risk" or not  
 
@@ -278,16 +278,16 @@ ncd_merged <- ncd_merged %>%
                            site == "HSRC" ~ "South Africa"),
          
          # Age
-         age_cat = factor(case_when(age >= 18 & age <40 ~ "18-39",
+         age_catR = factor(case_when(age >= 18 & age <40 ~ "18-39",
                                    age >= 40 & age < 60 ~ "40-59", 
                                    age >= 60 ~ "60+"),
                          levels = c("18-39", "40-59", "60+")),
         
-         age_catR = factor(case_when(age >= 18 & age <30 ~ "18-29",
-                             age >= 30 & age < 45 ~ "30-44",        
-                             age >= 45 & age < 60 ~ "45-59",
-                             age >= 60 ~ "60+"),
-                          levels = c("18-29", "30-44", "45-59", "60+")),
+         # age_catR = factor(case_when(age >= 18 & age <30 ~ "18-29",
+         #                     age >= 30 & age < 45 ~ "30-44",        
+         #                     age >= 45 & age < 60 ~ "45-59",
+         #                     age >= 60 ~ "60+"),
+         #                  levels = c("18-29", "30-44", "45-59", "60+")),
          
          # Gender
          genderR = factor(ifelse(gender=="Female", "Women", "Men"),
@@ -310,13 +310,13 @@ ncd_merged <- ncd_merged %>%
            levels = c("Yes", "No", "Missing")),
          
          # Education
-         edu_cat = case_when(education == "Primary" ~ 0,
+         edu_catR = case_when(education == "Primary" ~ 0,
                              education == "Secondary" ~ 1,
                              education == "Tertiary and above" ~ 2,
                              education == "Declined to answer" | education == "Unknown" ~ 3),
          
          # Occupation
-         occ_cat = case_when(occupation == "Unemployed" ~ 0,
+         occ_catR = case_when(occupation == "Unemployed" ~ 0,
                              occupation == "Farming/animal raising" ~ 1,
                              occupation == "Labourer/semi skilled" ~ 2,
                              occupation == "Trade/sales" ~ 3,
@@ -326,25 +326,25 @@ ncd_merged <- ncd_merged %>%
                              occupation == "Other" | occupation == "Declined to answer" ~ 7),
          
          # Smoking 
-         smoking_cat = factor(case_when( smoking_status == "Not at all" ~ "Not at all",
+         smoking_catR = factor(case_when( smoking_status == "Not at all" ~ "Not at all",
                                   smoking_status == "I used to smoke, but I quit" ~ "Former",
                                   smoking_status == "Yes, occasionally" ~ "Current - occasional",
                                   smoking_status == "Yes, daily or most days" ~ "Current - frequent"),
                        levels = c("Not at all", "Former", "Current - occasional", "Current - frequent")),
                          
          
-         smokes_day_cat = case_when(smokes_per_day >=1 & smokes_per_day <=4 ~ 0,
+         smokes_day_catR = case_when(smokes_per_day >=1 & smokes_per_day <=4 ~ 0,
                                     smokes_per_day>=5 & smokes_per_day <=10 ~ 1,
                                     smokes_per_day >=11 & smokes_per_day <= 20 ~ 2),
          
          # Stroke or heart attack in the past
-         stroke_cat = factor( case_when(ever_had_stroke =="No" ~ "No",
+         stroke_catR = factor( case_when(ever_had_stroke =="No" ~ "No",
                                 ever_had_stroke == "Yes" ~ "Yes", 
                                 T ~ "Missing"),
                               levels = c("No", "Yes", "Missing")),
          
          # Vegetables
-         veg_cat = factor(case_when(eat_vegetables == "Rarely" | eat_vegetables =="Never" ~ "Never or rarely",
+         veg_catR = factor(case_when(eat_vegetables == "Rarely" | eat_vegetables =="Never" ~ "Never or rarely",
                              eat_vegetables == "Sometimes" ~ "Sometimes",
                              eat_vegetables =="Always" | eat_vegetables =="Usually" ~ "Always or usually",
                              eat_vegetables == "Refused" ~ "Missing",
@@ -352,7 +352,7 @@ ncd_merged <- ncd_merged %>%
                           levels = c("Always or usually", "Sometimes", "Never or rarely", "Missing")),
          
          # Exercise
-         exer_cat = factor(case_when(days_exercise == "0" ~ "0",
+         exer_catR = factor(case_when(days_exercise == "0" ~ "0",
                                      days_exercise == "1-2" ~ "1-2",
                                      days_exercise == "3-4" ~ "3-4",
                                      days_exercise == "5-7" ~ "5-7",
