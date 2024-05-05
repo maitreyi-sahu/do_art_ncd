@@ -28,7 +28,7 @@ invisible(lapply(package.list, library, character.only = TRUE))
 # Load data and functions
 dir <- "C:/Users/msahu/OneDrive - UW/Documents/Research/DGH+MGH/DO_ART_NCD/"
 in_dir <- paste0(dir, "0_data/3_cleaned_data/")
-#source(paste0(dir, "2_code/gee_functions.R"))
+source(paste0(dir, "2_code/gee_functions.R"))
 
 # Subset to South Africa only!!
 # NOTE: we combine the community and hybrid arm (community follow-up), compared to clinic
@@ -251,147 +251,24 @@ rm(temp, temp1, temp2)
 
 # Poisson REGRESSIONS --------------------------------------------------------------
 
-reg_vars <- data.frame(
-  
-  var_name = c(
-    "bp_hi_exit", 
-    "overwt_exit", 
-    "a1c_hi_exit",
-   # "total_cholesterol_hi_exit",
-    "smokingR"
-),
+regressionDF <- get_empty_reg_df(ext = F)
 
-  var_label = c(
-    "Elevated BP",
-    "Overweight (BMI >= 25)",
-    "Elevated blood sugar (a1c >= 5.7)",
-   # "Elevated lipids (total cholesterol >= 200)",
-    "Smoker [baseline]"
-    ))
+for (v in unique(poisson_reg_vars$var_name)) {
   
-
-regressionDF <- data.frame(
-        variable = character(),
-        n = integer(),
-        rr = numeric(),
-        rr_ci = character(),
-        rr_p = numeric(),
-        adj.rr = character(),
-        adj.rr_ci = character(), 
-        adj.rr_p = character()
-        #,
-        #ext.rr = character(),
-        #ext.rr_ci = character(), 
-        #ext.rr_p = character() 
-    )
-
- 
-for (v in unique(reg_vars$var_name)) {
-  
-  # Adjusted for site only
-  m <- geeglm(get(v) ~ armR + site, 
-              family = poisson, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-  
-  m.rr <- exp(coef(m)[["armRCommunity follow-up"]]) # Relative Risk
-  m.se <- summary(m)$coef["armRCommunity follow-up",2] # SE
-  m.rr_ci <- exp(c(coef(m)[["armRCommunity follow-up"]] - qnorm(0.975)*m.se, 
-                  coef(m)[["armRCommunity follow-up"]] + qnorm(0.975)*m.se)) # RR: 95% CI with robust SE
-  m.p <- summary(m)$coef["armRCommunity follow-up",4]
-  m.n <- ncd_merged_subset %>% filter(!is.na(armR) & !is.na(site) & !is.na(get(v))) %>% nrow() # number of observations
-
-  # Adjusted for site, age, gender, smoking 
-  
-   if (v != "smokingR") {
-  
-  adj.m <- geeglm(get(v) ~ armR + site + age_catR + genderR + smokingR + educationR, 
-              family = poisson, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-   }
-  
-  if (v == "smokingR") {
-  
-  adj.m <- geeglm(get(v) ~ armR + site + age_catR + genderR + educationR, 
-              family = poisson, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-  
-   }
-  
-  adj.rr <- exp(coef(adj.m)[["armRCommunity follow-up"]]) # Relative Risk
-  adj.se <- summary(adj.m)$coef["armRCommunity follow-up",2] # SE
-  adj.rr_ci <- exp(c(coef(adj.m)[["armRCommunity follow-up"]] - qnorm(0.975)*adj.se, 
-                  coef(adj.m)[["armRCommunity follow-up"]] + qnorm(0.975)*adj.se)) # RR: 95% CI with robust SE
-  adj.p <- summary(adj.m)$coef["armRCommunity follow-up",4]
-  
-  # Adjusted for VS and site, age, gender, smoking 
-  
-  if (v != "smokingR") {
-  
-  ext.m <- geeglm(get(v) ~ armR + site + age_catR + genderR + smokingR + exit_viral_load_suppressedR + educationR, 
-              family = poisson, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-  }
-  
-  if (v == "smokingR") {
+  temp_row <- get_gee_results(
     
-  ext.m <- geeglm(get(v) ~ armR + site + age_catR + genderR + exit_viral_load_suppressedR + educationR, 
-              family = poisson, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-  
-  }
-    
-  ext.rr <- exp(coef(ext.m)[["armRCommunity follow-up"]]) # Relative Risk
-  ext.se <- summary(ext.m)$coef["armRCommunity follow-up",2] # SE
-  ext.rr_ci <- exp(c(coef(ext.m)[["armRCommunity follow-up"]] - qnorm(0.975)*ext.se, 
-                  coef(ext.m)[["armRCommunity follow-up"]] + qnorm(0.975)*ext.se)) # RR: 95% CI with robust SE
-  ext.p <- summary(ext.m)$coef["armRCommunity follow-up",4]
-  
-  # Bind
-  
-  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
-                m.n,
-                format(round(m.rr, round_digits), nsmall = round_digits), 
-                paste0("(",
-                       format(round(m.rr_ci, round_digits), nsmall = round_digits)[1], 
-                       ",",
-                       format(round(m.rr_ci, round_digits), nsmall = round_digits)[2],
-                       ")"),
-                format(round(m.p, p_digits), nmsall = p_digits),
-                format(round(adj.rr, round_digits), nsmall = round_digits), 
-                paste0("(",
-                       format(round(adj.rr_ci, round_digits), nsmall = round_digits)[1], 
-                       ",",
-                       format(round(adj.rr_ci, round_digits), nsmall = round_digits)[2],
-                       ")"),
-                format(round(adj.p, p_digits), nsmall = p_digits)
-                #,
-               # format(round(ext.rr, round_digits), nsmall = round_digits), 
-               #  paste0("(",
-              #         format(round(ext.rr_ci, round_digits), nsmall = round_digits)[1], 
-               #        ",",
-              #         format(round(ext.rr_ci, round_digits), nsmall = round_digits)[2],
-               #        ")"),
-              #  format(round(ext.p, p_digits), nsmall = p_digits)
-                )
+          df = ncd_merged_subset, 
+          family = "poisson",
+          cvd_var = v,
+          var_to_pull = "armRCommunity follow-up",
+          ext = F
+      )
   
   regressionDF <- rbind(regressionDF, temp_row)
   
 }
   
-names(regressionDF) =
-  c("Variable",
-    "N",
-    "Relative Risk",
-    "95% CI",
-    "p-value",
-    "Adj. Relative Risk",
-    "Adj. 95% CI",
-    "Adj. p-value"
-    #,
-    #"Ext. Relative Risk",
-    #"Ext. 95% CI",
-    #"Ext. p-value"
-    )
+
 
 
 # Word Doc output
@@ -411,103 +288,10 @@ ft
 
 # LINEAR REGRESSIONS --------------------------------------------------------------
 
-lin_reg_vars <- data.frame(
-  
-  var_name = c(
-    "sbp_mean_exit",
-    "dbp_mean_exit", 
-    "bmi", 
-    "hemoglobin_a1c_result",
-    "lipid_result"),
-
-  var_label = c(
-    "Systolic BP (mmHg)",
-    "Diastolic BP (mmHg)",
-    "BMI (kg/m^2)",
-    "Hemoglobin A1c (%)",
-    "Total cholesterol (mg/dL)") 
-)
-  
-
-regressionDF <- data.frame(
-        variable = character(),
-        n = integer(),
-        rd = numeric(),
-        rd_ci = character(),
-        rd_p = numeric(),
-        adj.rd = character(),
-        adj.rd_ci = character(), 
-        adj.rd_p = character(), 
-        ext.rd = character(),
-        ext.rd_ci = character(), 
-        ext.rd_p = character()
-    )
-
+regressionDF <- get_empty_reg_df()
  
 for (v in unique(lin_reg_vars$var_name)) {
  
-  # Adjusted for site only
-  lm <- geeglm(get(v) ~ armR + site, 
-              family = gaussian, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-  rd <- coef(lm)[["armRCommunity follow-up"]] # Mean Difference
-  lm.se <- summary(lm)$coef["armRCommunity follow-up",2] # SE
-  rd_ci <- c(coef(lm)[["armRCommunity follow-up"]] - qnorm(0.975)*lm.se, 
-                coef(lm)[["armRCommunity follow-up"]] + qnorm(0.975)*lm.se) # 95% CI
-  rd_p <- summary(lm)$coef["armRCommunity follow-up",4]
-  rd_n <- length(lm$id) # number of observations
-  
-  # Adjusted for site, age, gender, smoking 
-  
-  adj.lm <- geeglm(get(v) ~ armR + site + age_catR + genderR + smokingR + educationR, 
-              family = gaussian, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-  adj.rd <- coef(adj.lm)[["armRCommunity follow-up"]] # Mean Difference
-  adj.lm.se <- summary(adj.lm)$coef["armRCommunity follow-up",2] # SE
-  adj.rd_ci <- c(coef(adj.lm)[["armRCommunity follow-up"]] - qnorm(0.975)*adj.lm.se, 
-                  coef(adj.lm)[["armRCommunity follow-up"]] + qnorm(0.975)*adj.lm.se) # 95% CI
-  adj.rd_p <- summary(adj.lm)$coef["armRCommunity follow-up",4]
-  adj.rd_n <- length(adj.lm$id) # number of observations
-  
-  # Adjusted for VS and site, age, gender, smoking 
-  
-  ext.lm <- geeglm(get(v) ~ armR + site + age_catR + genderR + smokingR + exit_viral_load_suppressedR + educationR, 
-              family = gaussian, data = ncd_merged_subset,
-              id = hhid, corstr = "independence") 
-  ext.rd <- coef(ext.lm)[["armRCommunity follow-up"]] # Mean Difference
-  ext.lm.se <- summary(ext.lm)$coef["armRCommunity follow-up",2] # SE
-  ext.rd_ci <- c(coef(ext.lm)[["armRCommunity follow-up"]] - qnorm(0.975)*ext.lm.se, 
-                  coef(ext.lm)[["armRCommunity follow-up"]] + qnorm(0.975)*ext.lm.se) # 95% CI
-  ext.rd_p <- summary(ext.lm)$coef["armRCommunity follow-up",4]
-  ext.rd_n <- length(ext.lm$id) # number of observations
- 
-  temp_row <- c(lin_reg_vars[lin_reg_vars$var_name == v, "var_label"], 
-                paste0(m.n),
-                format(round(rd, round_digits), nsmall = round_digits), 
-                paste0("(",
-                      format(round(rd_ci, round_digits), nsmall = round_digits)[1], 
-                       ",",
-                       format(round(rd_ci, round_digits), nsmall = round_digits)[2],
-                       ")"),
-                format(round(rd_p, p_digits), nsmall = p_digits),
-                format(round(adj.rd, round_digits), nsmall = round_digits), 
-                paste0("(",
-                       format(round(adj.rd_ci, round_digits), nsmall = round_digits)[1], 
-                       ",",
-                       format(round(adj.rd_ci, round_digits), nsmall = round_digits)[2],
-                       ")"),
-                format(round(adj.rd_p, p_digits), nsmall = p_digits)
-                #,
-                #format(round(ext.rd, round_digits), nsmall = round_digits), 
-                #paste0("(",
-                #       format(round(ext.rd_ci, round_digits), nsmall = round_digits)[1], 
-                #       ",",
-                #       format(round(ext.rd_ci, round_digits), nsmall = round_digits)[2],
-                #       ")"),
-                #format(round(ext.rd_p, p_digits), nsmall = p_digits)
-                )
-  
-  regressionDF <- rbind(regressionDF, temp_row)
   
 }
   
@@ -574,22 +358,6 @@ vs_subset <- ncd_merged_subset %>%
   filter(!is.na(exit_viral_load_result))
 
 # POISSON REGRESSIONS --------------------------------------------------------------------------
-
-reg_vars <- data.frame(
-  
-  var_name = c(
-    "bp_hi_exit", 
-    "overwt_exit", 
-    "a1c_hi_exit",
-    "smokingR"
-   ),
-
-  var_label = c(
-    "Elevated BP",
-    "Overweight (BMI >= 25)",
-    "Elevated blood sugar (a1c >= 5.7)",
-    "Current smoker [baseline]"
-  ))
   
 regressionDF <- data.frame(
         variable = character(),
@@ -602,7 +370,7 @@ regressionDF <- data.frame(
     )
 
  
-for (v in unique(reg_vars$var_name)) {
+for (v in unique(poisson_reg_vars$var_name)) {
 
   # Adjusted for site only
   m <- geeglm(get(v) ~ site + exit_viral_load_suppressed, 
@@ -644,7 +412,7 @@ for (v in unique(reg_vars$var_name)) {
   
   }
   
-  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+  temp_row <- c(poisson_reg_vars[poisson_reg_vars$var_name == v, "var_label"], 
                 format(round(m.rr, round_digits), nsmall = round_digits), 
                 paste0("(",
                        format(round(m.rr_ci, round_digits), nsmall = round_digits)[1], 
@@ -798,21 +566,6 @@ vs_subset <- ncd_merged_subset %>%
 
 # POISSON REGRESSIONS -------------------------------------------------------------
 
-reg_vars <- data.frame(
-  
-  var_name = c(
-    "bp_hi_exit", 
-    "overwt_exit", 
-    "a1c_hi_exit",
-  #  "total_cholesterol_hi_exit",
-    "smokingR"),
-
-  var_label = c(
-    "Elevated BP",
-    "Overweight (BMI >= 25)",
-    "Elevated blood sugar (a1c >= 5.7)",
- #   "Elevated lipids (total cholesterol >= 200)",
-    "Current smoker [baseline]"))
   
 
 # COMMUNITY VS. CLINIC FOLLOW-UP
@@ -830,7 +583,7 @@ regressionDF_clinic <- data.frame(
         clinic_adj.rr_p = character()
     )
  
-for (v in unique(reg_vars$var_name)) {
+for (v in unique(poisson_reg_vars$var_name)) {
 
 
   # Adjusted for site, age, gender, smoking 
@@ -856,7 +609,7 @@ for (v in unique(reg_vars$var_name)) {
   adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
   
   
-  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+  temp_row <- c(poisson_reg_vars[poisson_reg_vars$var_name == v, "var_label"], 
                 format(round(adj.rr, round_digits), nsmall = round_digits), 
                 paste0("(",
                        format(round(adj.rr_ci, round_digits), nsmall = round_digits)[1], 
@@ -883,7 +636,7 @@ regressionDF_community <- data.frame(
         community_adj.rr_p = character()
     )
  
-for (v in unique(reg_vars$var_name)) {
+for (v in unique(poisson_reg_vars$var_name)) {
 
   # Adjusted for site, age, gender, smoking 
   
@@ -908,7 +661,7 @@ for (v in unique(reg_vars$var_name)) {
   adj.p <- summary(adj.m)$coef["exit_viral_load_suppressedTRUE",4]
   
   
-  temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+  temp_row <- c(poisson_reg_vars[poisson_reg_vars$var_name == v, "var_label"], 
                 format(round(adj.rr, round_digits), nsmall = round_digits), 
                 paste0("(",
                        format(round(adj.rr_ci, round_digits), nsmall = round_digits)[1], 
@@ -929,7 +682,7 @@ intDF <- data.frame(
         int.p = character()
     )
  
-for (v in unique(reg_vars$var_name)) {
+for (v in unique(poisson_reg_vars$var_name)) {
 
   
   if (v != "smokingR") {
@@ -950,7 +703,7 @@ for (v in unique(reg_vars$var_name)) {
   int.p <- summary(int.m)$coef["exit_viral_load_suppressedTRUE:armRCommunity follow-up",4]
   
   }
-   temp_row <- c(reg_vars[reg_vars$var_name == v, "var_label"], 
+   temp_row <- c(poisson_reg_vars[poisson_reg_vars$var_name == v, "var_label"], 
                 as.character(round(int.p, p_digits)))
   
   intDF <- rbind(intDF, temp_row) %>% 
@@ -990,25 +743,6 @@ ft <- flextable(regressionDF) %>%
 ft
 
 # LINEAR REGRESSIONS -----------------------------------------------------------------
-
-lin_reg_vars <- data.frame(
-  
-  var_name = c(
-    "sbp_mean_exit",
-    "dbp_mean_exit", 
-    "bmi", 
-    "hemoglobin_a1c_result",
-    "lipid_result"),
-
-  var_label = c(
-    "Systolic BP (mmHg)",
-    "Diastolic BP (mmHg)",
-    "BMI (kg/m^2)",
-    "Hemoglobin A1c (%)",
-    "Total cholesterol (mg/dL)") 
-)
-  
-
 
 # COMMUNITY VS. CLINIC FOLLOW-UP
 

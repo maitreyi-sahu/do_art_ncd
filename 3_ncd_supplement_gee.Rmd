@@ -36,8 +36,6 @@ ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>%
 
 
 ncd_noHybrid <- ncd_merged_subset %>% filter(arm!= "Hybrid arm")
-round_digits = 2
-p_digits = 3
 
 ```
 
@@ -1962,8 +1960,7 @@ ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>%
                           arm == "Hybrid arm" ~ "Community follow-up" )) 
   
   
-round_digits = 2
-p_digits = 3
+
 
 # DROP NA for GEE to run AND RESTRICT TO ART INTITIATORS
 
