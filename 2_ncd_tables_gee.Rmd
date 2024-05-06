@@ -248,84 +248,55 @@ rm(temp, temp1, temp2)
 ## Table 2. Cardiovascular risk for community follow-up HIV care versus clinic follow-up care, South Africa (N = 1010).
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
-
-# Poisson REGRESSIONS --------------------------------------------------------------
-
-regressionDF <- get_empty_reg_df(ext = F)
-
-for (v in unique(poisson_reg_vars$var_name)) {
+  # LINEAR
+  # Initialize an empty list to store results for each variable
+  results_list <- list()
   
-  temp_row <- get_gee_results(
+  var_names <- unique(lin_reg_vars$var_name)
+  
+  # Loop through each variable
+  for (i in seq_along(var_names)) {
     
-          df = ncd_merged_subset, 
-          family = "poisson",
-          cvd_var = v,
-          var_to_pull = "armRCommunity follow-up",
-          ext = F
-      )
-  
-  regressionDF <- rbind(regressionDF, temp_row)
-  
-}
-  
-
-
-
-# Word Doc output
-ft <- flextable(regressionDF) %>% 
-  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
-  add_header_row(values = c("", "N", "Unadjusted Analysis", "Adjusted Analysis" 
-                            #,"Extended Analysis (VS)"
-                            ), 
-                 top = T, colwidths = c(1, 1, 3, 3)) %>% 
-  width(width = 1.1) %>%
-  width(j = 1, width = 2.5) %>%
-  theme_vanilla() %>% 
-  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
-  align(i =1, align = "center", part = "header") 
-
-ft
-
-# LINEAR REGRESSIONS --------------------------------------------------------------
-
-regressionDF <- get_empty_reg_df()
- 
-for (v in unique(lin_reg_vars$var_name)) {
- 
-  
-}
-  
-names(regressionDF) =
-  c("Variable",
-    "N",
-    "Mean Difference",
-    "95% CI",
-    "p-value",
-    "Adj. Mean Difference",
-    "Adj. 95% CI",
-    "Adj. p-value"
-    #,
-    #"Ext. Mean Difference",
-    #"Ext. 95% CI",
-    #"Ext. p-value"
+    cvd_var <- var_names[i]
+    
+    temp_row <- get_gee_results(
+      df = df,
+      family = "gaussian",
+      cvd_var = cvd_var,
+      var_to_pull = var_to_pull,
+      ext = ext
     )
+    # Store temp_row in results_list
+    results_list[[cvd_var]] <- temp_row
+  }
+  
+  # Combine the results from the list into a single data frame
+  regressionDF <- as.data.frame(do.call(rbind, results_list))
+  
+  # Names
+  beta_label = "Mean Difference"
+  
+  
+  if (ext == F) {
+    
+    names(regressionDF) =
+      c("Variable", "n",
+        beta_label, "95% CI", "p-value",
+        paste0("Adj. ", beta_label), "Adj. 95% CI", "Adj. p-value"
+      )
+  }
+  
+  if (ext == T) {
+    
+    names(regressionDF) = c(
+      "Variable", "n",
+      beta_label, "95% CI", "p-value",
+      paste0("Adj. ", beta_label), "Adj. 95% CI", "Adj. p-value", 
+      paste0("Ext. ", beta_label), "Ext. 95% CI", "Ext. p-value")
+    
 
-# Word Doc output
-ft <- flextable(regressionDF) %>% 
-  colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
-  add_header_row(values = c("", "N",
-                            "Unadjusted Analysis", "Adjusted Analysis"
-                            #, "Extended Analysis (VS)"
-                            ), 
-                 top = T, colwidths = c(1, 1, 3, 3)) %>% 
- width(width = 1.1) %>%
-  width(j = 1, width = 2.5) %>%
-  theme_vanilla()  %>% 
-  vline(j = c(1, 4), border = fp_border_default(), part = "all") %>% 
-  align(i =1, align = "center", part = "header") 
-
+ft <- format_regression_table(regressionDF, ext = T)
 ft
-
 ```
 
 
@@ -349,8 +320,6 @@ ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>%
                           arm == "Hybrid arm" ~ "Community follow-up" ))
   
   
-round_digits = 2
-p_digits = 3
 
 # DROP NA for GEE to run
 
