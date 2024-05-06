@@ -11,8 +11,9 @@ run_gee <- function(formula, family, df) {geeglm(formula = formula,
                                                  corstr = "independence") }
 
 # Set formula and adjustment variables
-unadj_vars <- c("armR", "site")
+unadj_vars <- c("site")
 adj_vars <- c(unadj_vars, "age_catR", "genderR", "smokingR", "educationR") # UPDATE HERE FOR ANY CHANGES TO CONTROL VARS
+ext_var <- "baseline_cd4"
 
 # Settings
 round_digits = 2
@@ -74,6 +75,7 @@ lin_reg_vars <- data.frame(
 get_gee_results <- function(df = df, 
                             family, # poisson or gaussian
                             cvd_var,
+                            var_of_interest,
                             var_to_pull, # coefficient to pull, e.g. "armRCommunity follow-up"
                             ext = ext) { # is this the extended analysis? defaults to no
   
@@ -84,7 +86,7 @@ get_gee_results <- function(df = df,
   if (family == "gaussian") { reg_vars = lin_reg_vars}
   
   # Run GEE and get coeffs - unadjusted
-  vars <- unadj_vars
+  vars <-  c(var_of_interest, unadj_vars)
   formula <- make_formula(vars)
   n <- df %>% select(c(cvd_var, vars, hhid)) %>% filter(complete.cases(.)) %>% nrow() # N obs
   
@@ -105,11 +107,11 @@ get_gee_results <- function(df = df,
   
   # Run adjusted GEE and get coefs
   if (cvd_var != "smokingR") { 
-    vars <- adj_vars
+    vars <- c(var_of_interest, adj_vars)
     formula <- make_formula(vars)
   }
   if (cvd_var == "smokingR") {
-    vars <- adj_vars[adj_vars != "smokingR"]
+    vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR"])
     formula <- make_formula(vars)
   }
   adj.m <- run_gee(formula, family, df)
@@ -150,11 +152,11 @@ get_gee_results <- function(df = df,
   if (ext == T) {
   
     if (cvd_var != "smokingR") { 
-      vars <- c(adj_vars, "baseline_cd4")
+      vars <- c(var_of_interest, adj_vars, ext_var)
       formula <- make_formula(vars)
     }
     if (cvd_var == "smokingR") {
-      vars <- c(adj_vars[adj_vars != "smokingR"], "baseline_cd4")
+      vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR"], ext_var)
       formula <- make_formula(vars)
     }
     
@@ -192,7 +194,7 @@ get_gee_results <- function(df = df,
 
 # Regression results for ALL CVD vars
 
-get_regression_results <- function(df, var_to_pull, family, ext = F) {
+get_regression_results <- function(df, var_of_interest, var_to_pull, family, ext = F) {
   
   if (family == "poisson") {
     
@@ -216,7 +218,7 @@ get_regression_results <- function(df, var_to_pull, family, ext = F) {
     
     cvd_var <- v  
     
-    temp_row <- get_gee_results (df = df, family = family, cvd_var = cvd_var, var_to_pull = var_to_pull, ext = ext)
+    temp_row <- get_gee_results (df = df, family = family, cvd_var = cvd_var, var_of_interest = var_of_interest, var_to_pull = var_to_pull, ext = ext)
 
     # Store temp_row in results_list
     results_list[[v]] <- temp_row
@@ -267,4 +269,4 @@ get_regression_results <- function(df, var_to_pull, family, ext = F) {
   return(ft)    
 }
 
-# regressionDF <- get_regression_results(df = ncd_merged_subset, var_to_pull = "armRCommunity follow-up", ext = F, family = "gaussian") 
+#regressionDF <- get_regression_results(df = ncd_merged_subset, var_of_interest = "armR", var_to_pull = "armRCommunity follow-up", ext = F, family = "gaussian") 
