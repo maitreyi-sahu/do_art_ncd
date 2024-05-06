@@ -183,7 +183,7 @@ rm(temp, temp1, temp2)
 df = ncd_merged_subset
 var_of_interest = "armR"
 var_to_pull = "armRCommunity follow-up"
-ext = T 
+ext = F
 
 # POISSON 
 ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "poisson", ext = ext)
@@ -218,9 +218,7 @@ ft
 
 ### PAGE BREAK
 
-## Table 4: Cardiovascular risk for persons virally suppressed versus not suppressed at exit, South Africa (N = 983). 
-&nbsp;
-
+## Table 4: Cardiovascular risk for persons virally suppressed versus not suppressed at exit for clinic and community follow-up care, South Africa (N = 983). 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
 df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_suppressed))
@@ -229,20 +227,17 @@ var_to_pull = "exit_viral_load_suppressedTRUE"
 family = "poisson"
 strat_var = "armR"
 strat_var_to_pull = "armRCommunity follow-up"
-ext = T
 
 # POISSON 
 ft <- get_reg_strat_results(df = df, family = "poisson",
                              var_of_interest = var_of_interest, var_to_pull = var_to_pull,  
-                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull,
-                             ext = ext)
+                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull)
 ft
 
 # LINEAR
 ft <- get_reg_strat_results(df = df, family = "gaussian",
                              var_of_interest = var_of_interest, var_to_pull = var_to_pull,  
-                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull,
-                             ext = ext)
+                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull)
 ft
 
 ```
