@@ -127,16 +127,16 @@ D_var_labels = c(
 
 # Get results for single CVD var!
 
-#  ext = T
-#  df <- ncd_merged_subset
-#  var_to_pull = "armRCommunity follow-up"
+# ext = T
+# df <- ncd_merged_subset
+# var_to_pull = "armRCommunity follow-up"
 # cvd_var = poisson_reg_vars$var_name[1]
 # family = "poisson"
-#  
+
 get_gee_results <- function(df = df, 
                             family, # poisson or gaussian
                             cvd_var,
-                            var_of_interest,
+                            var_of_interest, # e.g. "armR"
                             var_to_pull, # coefficient to pull, e.g. "armRCommunity follow-up"
                             ext = ext) { # is this the extended analysis? defaults to no
   
@@ -271,7 +271,7 @@ get_regression_results <- function(df, var_of_interest, var_to_pull, family, ext
     beta_label = "Mean Difference"
   }
   
-  # Loop through CVD vars
+  # Loop through CVD vars and run GEE
   
   results_list <- list()
   
@@ -280,15 +280,13 @@ get_regression_results <- function(df, var_of_interest, var_to_pull, family, ext
     cvd_var <- v  
     
     temp_row <- get_gee_results (df = df, family = family, cvd_var = cvd_var, var_of_interest = var_of_interest, var_to_pull = var_to_pull, ext = ext)
-
-    # Store temp_row in results_list
+   
     results_list[[v]] <- temp_row
-    # Combine the results from the list into a single data frame
     regressionDF <- as.data.frame(do.call(rbind, results_list))
-        
   }
   
-  # Names
+  # ADD COL NAMES --> FORMATTED WORD TABLES  
+
   if (ext == F) {
     
     names(regressionDF) =
@@ -305,7 +303,8 @@ get_regression_results <- function(df, var_of_interest, var_to_pull, family, ext
       width(j = 1, width = 2.5) %>%
       theme_vanilla() %>% 
       vline(j = c(1, 2, 5), border = fp_border_default(), part = "all") %>% 
-      align(i =1, align = "center", part = "header") 
+      align(i = 1, align = "center", part = "header") %>% 
+      fontsize(size = 10)
   }
   
   if (ext == T) {
@@ -320,14 +319,191 @@ get_regression_results <- function(df, var_of_interest, var_to_pull, family, ext
       colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
       add_header_row(values = c("", "", "Unadjusted Analysis", "Adjusted Analysis", "Extended Analysis"), 
                      top = T, colwidths = c(1, 1, 3, 3, 3)) %>% 
-      width(width = 1.1) %>%
-      width(j = 1, width = 2.5) %>%
+      width(width = 0.9) %>%
+      width(j = 1, width = 1.3) %>%
       theme_vanilla() %>% 
       vline(j = c(1, 2, 5, 8), border = fp_border_default(), part = "all") %>% 
-      align(i =1, align = "center", part = "header") 
+      align(i =1, align = "center", part = "header") %>% 
+      fontsize(size = 10)
   }
       
   return(ft)    
 }
 
 #regressionDF <- get_regression_results(df = ncd_merged_subset, var_of_interest = "armR", var_to_pull = "armRCommunity follow-up", ext = F, family = "gaussian") 
+
+# ==============================================================================
+
+get_gee_strat_results <- function(df = df, 
+                                  family, # poisson or gaussian
+                                  cvd_var,
+                                  var_of_interest,  # e.g. "exit_viral_load_suppressed"
+                                  var_to_pull, # coefficient to pull, e.g. "exit_viral_load_suppressedTRUE"
+                                  strat_var, # needs to be a binary var = e.g. "genderR", "armR"
+                                  strat_var_to_pull, # e.g. "armRCommunity follow-up"
+                                  ext = ext) { # is this the extended analysis? defaults to no
+  
+  # Get var labels
+  if (family == "poisson") { reg_vars = poisson_reg_vars} 
+  if (family == "gaussian") { reg_vars = lin_reg_vars}
+  
+  # Get formula
+  make_formula <- function(vars) {as.formula(paste0(cvd_var, " ~ ", paste(vars, collapse = " + ")))}
+  
+  if (cvd_var != "smokingR") { 
+    vars <- c(var_of_interest, adj_vars)
+    formula <- make_formula(vars)
+  }
+  if (cvd_var == "smokingR") {
+    vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR"])
+    formula <- make_formula(vars)
+  }
+  
+  # Run GEE and get coefs - first level
+  df1 <- df[df[[strat_var]] == levels(df[[strat_var]])[1], ]
+  n.l1 <- df1 %>% select(c(cvd_var, vars, hhid)) %>% filter(complete.cases(.)) %>% nrow() # N obs
+  adj.m <- run_gee(formula, family, df1)
+  if (family == "poisson") {
+    beta.l1 <- exp(coef(adj.m)[[var_to_pull]]) # Relative Risk 
+    se <- summary(adj.m)$coef[var_to_pull,2] # SE
+    ci.l1 <- exp(c(coef(adj.m)[[var_to_pull]] - qnorm(0.975)*se, 
+                coef(adj.m)[[var_to_pull]] + qnorm(0.975)*se)) # RR: 95% CI with robust SE
+  } 
+  if (family == "gaussian") {
+    beta.l1 <- coef(adj.m)[[var_to_pull]] # Relative Difference
+    se <- summary(adj.m)$coef[var_to_pull,2] # SE
+    ci.l1 <- c(coef(adj.m)[[var_to_pull]] - qnorm(0.975)*se, 
+            coef(adj.m)[[var_to_pull]] + qnorm(0.975)*se) # RD: 95% CI with robust SE
+  } 
+  p.l1 <- summary(adj.m)$coef[var_to_pull,4]
+  
+  # Run GEE and get coefs - 2nd level
+  df2 <- df[df[[strat_var]] == levels(df[[strat_var]])[2], ]
+  n.l2 <- df2 %>% select(c(cvd_var, vars, hhid)) %>% filter(complete.cases(.)) %>% nrow() # N obs
+  adj.m <- run_gee(formula, family, df2)
+  if (family == "poisson") {
+    beta.l2 <- exp(coef(adj.m)[[var_to_pull]]) # Relative Risk 
+    se <- summary(adj.m)$coef[var_to_pull,2] # SE
+    ci.l2 <- exp(c(coef(adj.m)[[var_to_pull]] - qnorm(0.975)*se, 
+                   coef(adj.m)[[var_to_pull]] + qnorm(0.975)*se)) # RR: 95% CI with robust SE
+  } 
+  if (family == "gaussian") {
+    beta.l2 <- coef(adj.m)[[var_to_pull]] # Relative Difference
+    se <- summary(adj.m)$coef[var_to_pull,2] # SE
+    ci.l2 <- c(coef(adj.m)[[var_to_pull]] - qnorm(0.975)*se, 
+               coef(adj.m)[[var_to_pull]] + qnorm(0.975)*se) # RD: 95% CI with robust SE
+  } 
+  p.l2 <- summary(adj.m)$coef[var_to_pull,4]
+  
+  # Run GEE with interaction term and get p-value only
+  
+  if (cvd_var != "smokingR") { 
+    vars <- c(var_of_interest, adj_vars, paste0(var_of_interest, "*", strat_var))
+    formula <- make_formula(vars)
+  }
+  if (cvd_var == "smokingR") {
+    vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR"], paste0(var_of_interest, "*", strat_var))
+    formula <- make_formula(vars)
+  }
+  
+  int.m <- run_gee(formula, family, df)
+  int.p <- summary(int.m)$coef[paste0(var_to_pull, ":", strat_var_to_pull),4]
+  
+  # Format row
+  temp_row <- c(reg_vars[reg_vars$var_name == cvd_var, "var_label"], 
+                paste0(n.l1),
+                format(round(beta.l1, round_digits), nsmall = round_digits), 
+                paste0("(",
+                       format(round(ci.l1, round_digits), nsmall = round_digits)[1], 
+                       ",",
+                       format(round(ci.l1, round_digits), nsmall = round_digits)[2],
+                       ")"),
+                format(round(p.l1, p_digits), nsmall = p_digits),
+                paste0(n.l2),
+                format(round(beta.l2, round_digits), nsmall = round_digits), 
+                paste0("(",
+                       format(round(ci.l2, round_digits), nsmall = round_digits)[1], 
+                       ",",
+                       format(round(ci.l2, round_digits), nsmall = round_digits)[2],
+                       ")"),
+                format(round(p.l2, p_digits), nsmall = p_digits),
+                as.character(round(int.p, p_digits))
+  )
+  
+  return(temp_row)
+}
+
+
+# ==============================================================================
+
+# Regression results for ALL CVD vars- stratified analysis
+
+get_reg_strat_results <- function(df, 
+                                   family, 
+                                   cvd_var,
+                                   var_of_interest, var_to_pull, 
+                                   strat_var, strat_var_to_pull,
+                                   ext = F) {
+  
+  if (family == "poisson") {
+    
+    reg_vars = poisson_reg_vars
+    var_names <- unique(reg_vars$var_name)
+    beta_label = "Relative Risk"
+  }
+  
+  if (family == "gaussian") {
+    
+    reg_vars = lin_reg_vars
+    var_names <- unique(reg_vars$var_name)
+    beta_label = "Mean Difference"
+  }
+  
+  # Loop through CVD vars and run GEE
+  
+  results_list <- list()
+  
+  for (v in unique(var_names)) {
+    
+    cvd_var <- v  
+    
+    temp_row <- get_gee_strat_results (df = df, family = family, cvd_var = cvd_var, 
+                                       var_of_interest = var_of_interest, var_to_pull = var_to_pull, 
+                                       strat_var = strat_var, strat_var_to_pull = strat_var_to_pull,
+                                       ext = ext)
+    
+    results_list[[v]] <- temp_row
+    regressionDF <- as.data.frame(do.call(rbind, results_list))
+  }
+  
+  # Col names
+  names(regressionDF) = c(
+      "Variable", 
+      "n", paste0("Adj. ", beta_label), "Adj. 95% CI", "Adj. p-value",
+      "n ", paste0("Adj. ", beta_label, " "), "Adj. 95% CI ", "Adj. p-value ",
+      "Adj. p-value  "
+      )
+  
+  # Formatted Word Table
+  ft <- flextable(regressionDF) %>%
+    colformat_double(big.mark=",", digits = 1, na_str = "N/A") %>%
+    add_header_row(values = c("", levels(df[[strat_var]])[1], levels(df[[strat_var]])[2], "Interaction"),
+                   top = T, colwidths = c(1, 4, 4, 1)) %>%
+    width(width = 1.1) %>%
+    width(j = 1, width = 1.75) %>%
+    theme_vanilla()  %>%
+    vline(j = c(1, 5, 9), border = fp_border_default(), part = "all") %>%
+    align(i =1, align = "center", part = "header")  %>%
+    fontsize(size = 10)
+
+    return(ft) 
+}
+
+# regressionDF <- get_reg_strat_results(df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_suppressed)),
+#                                       var_of_interest = "exit_viral_load_suppressed",
+#                                       var_to_pull = "exit_viral_load_suppressedTRUE",
+#                                       cvd_var = poisson_reg_vars$var_name[1],
+#                                       family = "poisson",
+#                                       strat_var = "armR",
+#                                       strat_var_to_pull = "armRCommunity follow-up",
+#                                       ext = T)

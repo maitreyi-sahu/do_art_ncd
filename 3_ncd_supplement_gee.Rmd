@@ -23,16 +23,12 @@ dir <- "C:/Users/msahu/OneDrive - UW/Documents/Research/DGH+MGH/DO_ART_NCD/"
 in_dir <- paste0(dir, "0_data/3_cleaned_data/")
 
 ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
-  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
-                          arm == "Community arm" ~ "Community follow-up",
-                          arm == "Hybrid arm" ~ "Community follow-up" ))
-
-ncd_noHybrid <- ncd_merged_subset %>% filter(arm!= "Hybrid arm")
+  filter(country == "South Africa") %>% 
+  mutate(site = factor (site, levels = c("HSRC", "AHRI")))
 
 # Source functions
 source(paste0(dir, "2_code/gee_functions.R"))
 source(paste0(dir, "2_code/plot_functions.R"))
-
 ```
 
 
@@ -51,7 +47,6 @@ source(paste0(dir, "2_code/plot_functions.R"))
 
 ## S3: Additional Analysis
 
-+ S3, Table 3: Interaction term coefficients 
 + S3, Table 4: Table 3 by gender (adjusted only)
 + S3, Table 5: Table 3 restricted to people who initiated ART 
 + S3, Table 6: Table 4 restricted to people who initiated ART 
@@ -428,25 +423,6 @@ rm(temp)
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 # Set up --------------------------------------------------------------------------
-
-headings <- data.frame(
-  section = c("A", "B", "C"),
-  title = c( "", 
-             "ii) Lifestyle and other risk",
-              "iii) Cardiovascular Risk")
-)
-
-# A) Demographics
-A_vars = c(
-  "age_catR","genderR", "educationR"
-  )
-A_var_labels = c(
-  "Age", "Gender", "Education"
-  )
-
-# B) Lifestyle and Other Risk (same as above)
-
-# C) Cardiovascular risk (same as above)
 
 table_vars <- data.frame(
   
