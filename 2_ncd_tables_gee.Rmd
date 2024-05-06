@@ -38,8 +38,8 @@ unique_hh <- length(unique(ncd_merged_subset$hhid))
 ## Main paper tables (South Africa only)
 
 + Table 1: Descriptive statistics of cardiovascular risk in the South Africa site of the DO ART study, by trial arm and gender
-+ Table 2: Poisson + linear regressions for community follow-up compared with clinic follow-up, and including VS
-+ Table 3: Poisson + linear regressions with VS as predictor
++ Table 2: Poisson + linear regressions for community follow-up compared with clinic follow-up
++ Table 3: Poisson + linear regressions with VS as predictor, and including CD4+
 + Table 4: Poisson + linear regressions with VS as predictor, stratified by treatment arm; with interaction term for VS
 
 &nbsp;
@@ -196,7 +196,7 @@ ft
 
 ### Page Break
 
-## Table 3: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline, in South Africa (N = 983).
+## Table 3: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline and controlling for CD4+ count, in South Africa(N = 983).
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
@@ -220,7 +220,6 @@ ft
 
 ## Table 4: Cardiovascular risk for persons virally suppressed versus not suppressed at exit for clinic and community follow-up care, South Africa (N = 983). 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
-
 df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_suppressed))
 var_of_interest = "exit_viral_load_suppressed"
 var_to_pull = "exit_viral_load_suppressedTRUE"
@@ -239,7 +238,6 @@ ft <- get_reg_strat_results(df = df, family = "gaussian",
                              var_of_interest = var_of_interest, var_to_pull = var_to_pull,  
                              strat_var = strat_var, strat_var_to_pull = strat_var_to_pull)
 ft
-
 ```
 
 

@@ -334,14 +334,12 @@ get_regression_results <- function(df, var_of_interest, var_to_pull, family, ext
 
 # ==============================================================================
 
-df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_suppressed))
-var_of_interest = "exit_viral_load_suppressed"
-var_to_pull = "exit_viral_load_suppressedTRUE"
-family = "poisson"
-strat_var = "armR"
-strat_var_to_pull = "armRCommunity follow-up"
-filter_var = "genderR"
-filter_var_level = "Women"
+# df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_suppressed))
+# var_of_interest = "exit_viral_load_suppressed"
+# var_to_pull = "exit_viral_load_suppressedTRUE"
+# family = "poisson"
+# strat_var = "armR"
+# strat_var_to_pull = "armRCommunity follow-up"
 
 get_gee_strat_results <- function(df = df, 
                                   family, # poisson or gaussian
@@ -349,12 +347,8 @@ get_gee_strat_results <- function(df = df,
                                   var_of_interest,  # e.g. "exit_viral_load_suppressed"
                                   var_to_pull, # coefficient to pull, e.g. "exit_viral_load_suppressedTRUE"
                                   strat_var, # needs to be a binary var = e.g. "genderR", "armR"
-                                  strat_var_to_pull, # e.g. "armRCommunity follow-up"
-                                  filter_var = "", # 2nd strat var, if needed
-                                  filter_var_level = "" # 1 or 2
+                                  strat_var_to_pull # e.g. "armRCommunity follow-up"
                                 ) { 
-  
-  if(filter_var != "") {df <- df[df[[filter_var]] ==  levels(df[[filter_var]])[filter_var_level], ]}
   
   # Get var labels
   if (family == "poisson") { reg_vars = poisson_reg_vars} 
@@ -362,36 +356,17 @@ get_gee_strat_results <- function(df = df,
   
   # Get formula
   make_formula <- function(vars) {as.formula(paste0(cvd_var, " ~ ", paste(vars, collapse = " + ")))}
-  
-  # the model for Women only doesn't run when education is missing
-  if(filter_var == "genderR") {
-    df <- df %>% filter(educationR != "Missing") 
-    df$educationR <- factor(df$educationR)
-  }
-  
-  if(filter_var == "") {
-  
-      if (cvd_var != "smokingR") { 
-        vars <- c(var_of_interest, adj_vars[adj_vars != strat_var])
-      } else if (cvd_var == "smokingR") {
-        vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR" & adj_vars != strat_var])
-      }
-  }
-  
-  if(filter_var != "") {
-    
-    if (cvd_var != "smokingR") { 
-      vars <- c(var_of_interest, adj_vars[adj_vars != strat_var & adj_vars != filter_var ])
-    } else if (cvd_var == "smokingR") {
-      vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR" & adj_vars != strat_var & adj_vars != filter_var])
-    }
+
+  if (cvd_var != "smokingR") { 
+    vars <- c(var_of_interest, adj_vars[adj_vars != strat_var])
+  } else if (cvd_var == "smokingR") {
+    vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR" & adj_vars != strat_var])
   }
   
   formula <- make_formula(vars)
   
   # Run GEE and get coefs - first level
-  if (filter_var == "") {df1 <- df[df[[strat_var]] == levels(df[[strat_var]])[1], ]}
-  if (filter_var != "") {df1 <- df[df[[strat_var]] == levels(df[[strat_var]])[1] & df[[filter_var]] ==  levels(df[[filter_var]])[filter_var_level], ]}
+  df1 <- df[df[[strat_var]] == levels(df[[strat_var]])[1], ]
   n.l1 <- df1 %>% select(c(cvd_var, vars, hhid)) %>% filter(complete.cases(.)) %>% nrow() # N obs
   adj.m <- run_gee(formula, family, df1)
   if (family == "poisson") {
@@ -409,8 +384,7 @@ get_gee_strat_results <- function(df = df,
   p.l1 <- summary(adj.m)$coef[var_to_pull,4]
   
   # Run GEE and get coefs - 2nd level
-  if (filter_var == "") {df2 <- df[df[[strat_var]] == levels(df[[strat_var]])[2], ]}
-  if (filter_var != "") {df2 <- df[df[[strat_var]] == levels(df[[strat_var]])[2] & df[[filter_var]] ==  levels(df[[filter_var]])[filter_var_level], ]}
+  df2 <- df[df[[strat_var]] == levels(df[[strat_var]])[2], ]
   n.l2 <- df2 %>% select(c(cvd_var, vars, hhid)) %>% filter(complete.cases(.)) %>% nrow() # N obs
   adj.m <- run_gee(formula, family, df2)
   if (family == "poisson") {
@@ -429,22 +403,10 @@ get_gee_strat_results <- function(df = df,
   
   # Run GEE with interaction term and get p-value only
   
-  if(filter_var == "") {
-    
-    if (cvd_var != "smokingR") { 
-      vars <- c(var_of_interest, adj_vars[adj_vars != strat_var], paste0(var_of_interest, "*", strat_var))
-    } else if (cvd_var == "smokingR") {
-      vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR" & adj_vars != strat_var], paste0(var_of_interest, "*", strat_var))
-    }
-  }
-  
-  if(filter_var != "") {
-    
-    if (cvd_var != "smokingR") { 
-      vars <- c(var_of_interest, adj_vars[adj_vars != strat_var & adj_vars != filter_var ], paste0(var_of_interest, "*", strat_var))
-    } else if (cvd_var == "smokingR") {
-      vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR" & adj_vars != strat_var & adj_vars != filter_var], paste0(var_of_interest, "*", strat_var))
-    }
+  if (cvd_var != "smokingR") { 
+    vars <- c(var_of_interest, adj_vars[adj_vars != strat_var], paste0(var_of_interest, "*", strat_var))
+  } else if (cvd_var == "smokingR") {
+    vars <- c(var_of_interest, adj_vars[adj_vars != "smokingR" & adj_vars != strat_var], paste0(var_of_interest, "*", strat_var))
   }
   formula <- make_formula(vars)
   
@@ -484,8 +446,7 @@ get_reg_strat_results <- function(df,
                                    family, 
                                    cvd_var,
                                    var_of_interest, var_to_pull, 
-                                   strat_var, strat_var_to_pull,
-                                   filter_var = "", filter_var_level = ""
+                                   strat_var, strat_var_to_pull
                                    ) {
   
   if (family == "poisson") {

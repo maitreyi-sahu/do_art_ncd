@@ -49,15 +49,9 @@ source(paste0(dir, "2_code/plot_functions.R"))
 
 + S3, Table 1: Table 2 by gender (adjusted only)
 + S3, Table 2: Table 3 by gender (adjusted only)
-+ S3, Table 3: Table 4 - men only (adjusted only)
-+ S3, Table 4: Table 4 - women only (adjusted only)
-+ S3, Table 5: Table 2 by site (adjusted only)
-+ S3, Table 6: Table 3 by site (adjusted only)
-+ S3, Table 7: Table 4 - Site 1 (adjusted only)
-+ S3, Table 8: Table 4 - Site 2 (adjusted only)
-+ S3, Table 9: Table 2 restricted to people who initiated ART 
-+ S3, Table 10: Table 3 restricted to people who initiated ART 
-+ S3, Table 11: Table 4 restricted to people who initiated ART 
++ S3, Table 3: Table 2 restricted to people who initiated ART 
++ S3, Table 4: Table 3 restricted to people who initiated ART 
++ S3, Table 5: Table 4 restricted to people who initiated ART 
 
 ## S4: Figures
 
@@ -71,7 +65,7 @@ source(paste0(dir, "2_code/plot_functions.R"))
 
 ### Page Break
 
-## Appendix Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
+## S2, Appendix Table 1: Change in cardiovascular risk from baseline to endline, by trial arm and gender (AHRI site only, N = 350)
 
 &nbsp;
 
@@ -204,13 +198,15 @@ flextable_to_rmd(ft)
 
 ### Page break
 
-## Appendix Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315)
+## S2, Appendix Table 2: Descriptive statistics of cardiovascular risk in the DO ART study, by site (N = 1315)
 
 &nbsp;
 
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 # Set up --------------------------------------------------------------------------
+
+ncd_merged <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) 
 
 headings <- data.frame(
   section = c("A", "B", "C"),
@@ -272,7 +268,7 @@ for (i in unique(headings$section)) {
   
   for (v in unique(table_subset$var_name)) {
       
-    data = ncd_merged_subset 
+    data = ncd_merged
     
     temp <- data %>% 
       
@@ -316,13 +312,7 @@ rm(temp)
 
 ### Page break
 
-&nbsp;
-
-
-## Appendix Table 3: Descriptive statistics of cardiovascular risk in the DO ART study for South Africa, by viral suppression (N = 1010)
-
-&nbsp;
-
+## S2, Appendix Table 3: Descriptive statistics of cardiovascular risk in the DO ART study for South Africa, by viral suppression (N = 1010)
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 headings <- data.frame(
@@ -420,7 +410,7 @@ rm(temp)
 ### Page break
 
 
-## Appendix Table 4: Descriptive statistics of cardiovascular risk in the DO ART study for South Africa, by ART initiation
+## S2, Appendix Table 4: Descriptive statistics of cardiovascular risk in the DO ART study for South Africa, by ART initiation
 
 &nbsp;
 
@@ -557,87 +547,71 @@ ft
 
 ```
 
-+ S3, Table 3: Table 4 - men only (adjusted only)
+
+## Appendix S3, Table 3: Cardiovascular risk among for community vs clinic care RESTICTED TO PEOPLE WHO INITIATIED ART, in South Africa (N = 659).
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
-df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_suppressed))
-var_of_interest = "exit_viral_load_suppressed"
-var_to_pull = "exit_viral_load_suppressedTRUE"
-family = "poisson"
-strat_var = "armR"
-strat_var_to_pull = "armRCommunity follow-up"
-filter_var = "genderR"
-filter_var_level = "Men"
+df <- ncd_merged_subset %>%  filter(initiated_art == T) %>% filter(!is.na(exit_viral_load_result))
+var_of_interest = "armR"
+var_to_pull = "armRCommunity follow-up"
+ext = F
 
-# POISSON
-ft <- get_reg_strat_results(df = df, family = "poisson",
-                             var_of_interest = var_of_interest, var_to_pull = var_to_pull,
-                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull,
-                             filter_var = filter_var, filter_var_level = filter_var_level)
+# POISSON 
+ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "poisson", ext = ext)
 ft
 
-# LINEAR
-ft <- get_reg_strat_results(df = df, family = "gaussian",
-                             var_of_interest = var_of_interest, var_to_pull = var_to_pull,
-                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull,
-                             filter_var = filter_var, filter_var_level = filter_var_level)
+# LINEAR 
+ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "gaussian", ext = ext)
 ft
-
-```
-+ S3, Table 4: Table 4 - women only (adjusted only)
-```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
-df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_suppressed)) 
-var_of_interest = "exit_viral_load_suppressed"
-var_to_pull = "exit_viral_load_suppressedTRUE"
-family = "poisson"
-strat_var = "armR"
-strat_var_to_pull = "armRCommunity follow-up"
-filter_var = "genderR"
-filter_var_level = "Women"
-
-# POISSON
-ft <- get_reg_strat_results(df = df, family = "poisson",
-                             var_of_interest = var_of_interest, var_to_pull = var_to_pull,
-                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull,
-                             filter_var = filter_var, filter_var_level = filter_var_level)
-ft
-
-# LINEAR
-ft <- get_reg_strat_results(df = df, family = "gaussian",
-                             var_of_interest = var_of_interest, var_to_pull = var_to_pull,
-                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull,
-                             filter_var = filter_var, filter_var_level = filter_var_level)
-ft
-
 ```
 
-+ S3, Table 5: Table 2 by site (adjusted only)
-+ S3, Table 6: Table 3 by site (adjusted only)
-+ S3, Table 7: Table 4 - Site 1 (adjusted only)
-+ S3, Table 8: Table 4 - Site 2 (adjusted only)
-+ S3, Table 9: Table 2 restricted to people who initiated ART 
-+ S3, Table 10: Table 3 restricted to people who initiated ART 
-+ S3, Table 11: Table 4 restricted to people who initiated ART 
-
-
-## Appendix S3, Table 2: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline, by gender
 
 ### Page Break
 
-## Appendix S3, Table 6: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline RESTRICTED TO PEOPLE WHO INITIATIED ART, in South Africa (N = 659).
+## Appendix S3, Table 4: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline and controlling for CD4+ count RESTRICTED TO PEOPLE WHO INITIATIED ART, in South Africa (N = 659).
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
 df <- ncd_merged_subset %>%  filter(initiated_art == T) %>% filter(!is.na(exit_viral_load_result))
+
+var_of_interest = "exit_viral_load_suppressed"
+var_to_pull = "exit_viral_load_suppressedTRUE"
+ext = T 
+
+# POISSON 
+ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "poisson", ext = ext)
+ft
+
+# LINEAR 
+ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "gaussian", ext = ext)
+ft
+
 ```
 
 ### Page Break
 
-## Appendix S3, Table 7: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline RESTICTED TO PEOPLE WHO INITIATIED ART, in South Africa (N = 659).
+## Appendix S3, Table 5: Cardiovascular risk among people virally suppressed versus those not virally suppressed at endline RESTICTED TO PEOPLE WHO INITIATIED ART, in South Africa (N = 659).
 
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
 df <- ncd_merged_subset %>%  filter(initiated_art == T) %>% filter(!is.na(exit_viral_load_result))
+var_of_interest = "exit_viral_load_suppressed"
+var_to_pull = "exit_viral_load_suppressedTRUE"
+family = "poisson"
+strat_var = "armR"
+strat_var_to_pull = "armRCommunity follow-up"
+
+# POISSON 
+ft <- get_reg_strat_results(df = df, family = "poisson",
+                             var_of_interest = var_of_interest, var_to_pull = var_to_pull,  
+                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull)
+ft
+
+# LINEAR
+ft <- get_reg_strat_results(df = df, family = "gaussian",
+                             var_of_interest = var_of_interest, var_to_pull = var_to_pull,  
+                             strat_var = strat_var, strat_var_to_pull = strat_var_to_pull)
+ft
 ```
 
 ### Page Break
