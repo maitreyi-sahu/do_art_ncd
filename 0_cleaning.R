@@ -263,6 +263,12 @@ ncd_merged <- ncd_merged %>%
  
    mutate(
         
+        # version of trial arms with only 2 levels
+        armR = factor(case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+                                    arm == "Community arm" ~ "Community follow-up",
+                                    arm == "Hybrid arm" ~ "Community follow-up" ),
+                          levels = c("Clinic follow-up", "Community follow-up")),
+     
         site = factor(site,
                       levels = c("ICOBI", "HSRC", "AHRI")),
      

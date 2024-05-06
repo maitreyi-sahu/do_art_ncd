@@ -13,29 +13,25 @@ output:
 rm(list=ls())
 
 # Load packages
-
 package.list <- c("plyr", "dplyr", "tidyr", "magrittr", "data.table", "ggplot2",
-                  "janitor", "tables", "flextable", # table formatting
-                  "geepack", "sandwich", # regression analysis 
-                  "ggpubr"
-                  )
-
+                  "janitor", "tables", "flextable", "ggpubr", # table formatting
+                  "geepack", "sandwich") # regression analysis 
 invisible(lapply(package.list, library, character.only = TRUE))
 
 # Load data
-
 dir <- "C:/Users/msahu/OneDrive - UW/Documents/Research/DGH+MGH/DO_ART_NCD/"
 in_dir <- paste0(dir, "0_data/3_cleaned_data/")
-source(paste0(dir, "2_code/plot_functions.R"))
 
 ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
   mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
                           arm == "Community arm" ~ "Community follow-up",
                           arm == "Hybrid arm" ~ "Community follow-up" ))
 
-
-
 ncd_noHybrid <- ncd_merged_subset %>% filter(arm!= "Hybrid arm")
+
+# Source functions
+source(paste0(dir, "2_code/gee_functions.R"))
+source(paste0(dir, "2_code/plot_functions.R"))
 
 ```
 
@@ -82,62 +78,17 @@ ncd_noHybrid <- ncd_merged_subset %>% filter(arm!= "Hybrid arm")
 
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
-  
-# Set up -------------------------------------------------------------
-
-headings <- data.frame(
-  section = c("A", "B", "C"),
-  title = c( "", 
-             "ii) Lifestyle and other risk",
-              "iii) Cardiovascular Risk")
+# Mean Table
+col_headings_mean <- c(
+  "Change in CVD risk",
+  "Clinic Follow-Up Arm \n Mean (SE)", 
+  "Community Follow-Up Arm \n Mean (SE)",
+  "Women \n Mean (SE)", 
+  "Men \n Mean (SE)",
+  "Virally Suppressed at Exit \n Mean (SE)", 
+  "Not Virally Suppressed at Exit \n Mean (SE)",
+  "Total \n Mean (SE)"
 )
-
-# A) Demographics
-A_vars = c(
-  "age_catR",
-  "genderR"
-  )
-A_var_labels = c(
-  "Age",
-  "Gender"
-  )
-
-# B) Lifestyle and Other Risk
-
-B_vars = c(  
-  "smoking_catR",
-  "exer_catR",
-  "veg_catR",
-  "stroke_catR")
-B_var_labels = c(
-  "Smoking Status  \n [Baseline]",
-  "Days of exercise (per week) \n [Endline]",
-  "Vegetable intake \n [Endline]",
-   "Prior stroke or heart attack  \n [Endline]")
-
-
-# C) Cardiovascular risk
-C_vars = c(
-  "bp_cat_exit", 
-  "bmi_cat_exit", 
-  "a1c_cat_exit", 
-  "total_cholesterol_exit",
-  "who_cvd_risk_exit")
-C_var_labels = c(
-  "Blood pressure \n [Endline]",
-   "BMI (kg/m^2) \n [Endline]",
-   "Hemoglobin A1C (%) \n [Endline]",
-   "Total cholesterol (mg/dL) \n [Endline]",
-   "10-year CVD risk score \n [Endline]")
-
-# D) Change in CVD risk
-D_vars = c(  
-  "bmi_diff",
-  "sbp_diff")
-D_var_labels = c(
-  "Change in BMI, baseline to endline  \n [AHRI only]",
-  "Change in Systolic Blood pressure, baseline to endline  \n [AHRI only]" )
-
 
 table_vars <- data.frame(
   
@@ -149,20 +100,6 @@ table_vars <- data.frame(
     
     section = case_when(
       var_name %in% c(D_vars) ~ "D"))
-  
-  
-# Descriptive Proportion Table ----------------------------------------------------
-
-col_headings_mean <- c(
-  "Change in CVD risk",
-  "Clinic Follow-Up Arm \n Mean (SE)", 
-  "Community Follow-Up Arm \n Mean (SE)",
-  "Women \n Mean (SE)", 
-  "Men \n Mean (SE)",
-  "Virally Suppressed at Exit \n Mean (SE)", 
-  "Not Virally Suppressed at Exit \n Mean (SE)",
-  "Total \n Mean (SE)"
-  )
 
 
   table_subset <- table_vars[table_vars$section=="D", ]
@@ -389,26 +326,12 @@ rm(temp)
 
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
-# Set up --------------------------------------------------------------------------
-
 headings <- data.frame(
   section = c("A", "B", "C"),
   title = c( "", 
              "ii) Lifestyle and other risk",
               "iii) Cardiovascular Risk")
 )
-
-# A) Demographics
-A_vars = c(
-  "age_catR","genderR", "educationR"
-  )
-A_var_labels = c(
-  "Age", "Gender", "Education"
-  )
-
-# B) Lifestyle and Other Risk (same as above)
-
-# C) Cardiovascular risk (same as above)
 
 table_vars <- data.frame(
   

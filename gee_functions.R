@@ -64,6 +64,67 @@ lin_reg_vars <- data.frame(
 
 # ==============================================================================
 
+# Col headings for descriptive tables
+
+
+headings <- data.frame(
+  section = c("A", "B", "C"),
+  title = c( "", 
+             "ii) Lifestyle and other risk",
+             "iii) Cardiovascular Risk")
+)
+
+# A) Demographics
+A_vars = c(
+  "age_catR",
+  "genderR",
+  "educationR"
+)
+A_var_labels = c(
+  "Age",
+  "Gender",
+  "Education"
+)
+
+# B) Lifestyle and Other Risk
+
+B_vars = c(  
+  "smoking_catR",
+  "exer_catR",
+  "veg_catR",
+  "stroke_catR")
+B_var_labels = c(
+  "Smoking Status  \n [Baseline]",
+  "Days of exercise (per week) \n [Exit]",
+  "Vegetable intake \n [Exit]",
+  "Prior stroke or heart attack  \n [Exit]")
+
+
+# C) Cardiovascular risk
+C_vars = c(
+  "bp_cat_exit", 
+  "bmi_cat_exit", 
+  "a1c_cat_exit", 
+  "total_cholesterol_exit",
+  "who_cvd_risk_exit")
+C_var_labels = c(
+  "Blood pressure \n [Exit]",
+  "BMI (kg/m^2) \n [Exit]",
+  "Hemoglobin A1C (%) \n [Exit]",
+  "Total cholesterol (mg/dL) \n [Exit]",
+  "10-year CVD risk score \n [Exit]")
+
+# D) Change in CVD risk
+D_vars = c(  
+  "bmi_diff",
+  "sbp_diff")
+D_var_labels = c(
+  "Change in BMI, baseline to endline  \n [AHRI only]",
+  "Change in Systolic Blood pressure, baseline to endline  \n [AHRI only]" )
+
+
+# ==============================================================================
+
 # Get results for single CVD var!
 
 #  ext = T
@@ -192,7 +253,7 @@ get_gee_results <- function(df = df,
 
 # ==============================================================================
 
-# Regression results for ALL CVD vars
+# Regression results for ALL CVD vars- unadjusted and adjusted
 
 get_regression_results <- function(df, var_of_interest, var_to_pull, family, ext = F) {
   

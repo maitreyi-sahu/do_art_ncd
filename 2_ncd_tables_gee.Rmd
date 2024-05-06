@@ -13,16 +13,9 @@ output:
 rm(list=ls())
 
 # Load packages 
-
 package.list <- c("plyr", "dplyr", "tidyr", "magrittr", "data.table", "ggplot2",
-                  "janitor", "tables", "flextable", # table formatting
-                  "geepack", "sandwich", # regression analysis 
-                  "ggpubr"
-                  )
-
-# new.packages <- package.list[!(package.list %in% installed.packages()[,"Package"])]
-# if(length(new.packages)) install.packages(new.packages)
-
+                  "janitor", "tables", "flextable", "ggpubr", # table formatting
+                  "geepack", "sandwich") # regression analysis   
 invisible(lapply(package.list, library, character.only = TRUE))
 
 # Load data and functions
@@ -32,19 +25,15 @@ source(paste0(dir, "2_code/gee_functions.R"))
 
 # Subset to South Africa only!!
 # NOTE: we combine the community and hybrid arm (community follow-up), compared to clinic
-
 ncd_merged_subset <- readRDS(paste0(in_dir, "ncd_merged_subset.rds")) %>% 
   filter(country == "South Africa") %>% 
   mutate(site = factor (site,
                        levels = c("HSRC",
                                   "AHRI"))) %>% 
-  mutate(armR = case_when(arm == "Clinic arm" ~ "Clinic follow-up",
+  mutate(armR = factor(case_when(arm == "Clinic arm" ~ "Clinic follow-up",
                           arm == "Community arm" ~ "Community follow-up",
-                          arm == "Hybrid arm" ~ "Community follow-up" ))
-  
-  
-round_digits = 2
-p_digits = 3
+                          arm == "Hybrid arm" ~ "Community follow-up" ),
+                       levels = c("Clinic follow-up", "Community follow-up")))
 
 # Number plugging: % individuals in a household with multiple participants?
 total_n <- ncd_merged_subset %>% nrow()
@@ -73,64 +62,15 @@ Notes:
 ## Table 1: Descriptive statistics of cardiovascular risk in the South Africa site of the DO ART study, by trial arm and gender (N = 1010)
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
-
-# Set up --------------------------------------------------------------------------
-
-headings <- data.frame(
-  section = c("A", "B", "C"),
-  title = c( "", 
-             "ii) Lifestyle and other risk",
-              "iii) Cardiovascular Risk")
-)
-
-# A) Demographics
-A_vars = c(
-  "age_catR",
-  "genderR",
-  "educationR"
-  )
-A_var_labels = c(
-  "Age",
-  "Gender",
-  "Education"
-  )
-
-# B) Lifestyle and Other Risk
-
-B_vars = c(  
-  "smoking_catR",
-  "exer_catR",
-  "veg_catR",
-  "stroke_catR")
-B_var_labels = c(
-  "Smoking Status  \n [Baseline]",
-  "Days of exercise (per week) \n [Exit]",
-  "Vegetable intake \n [Exit]",
-   "Prior stroke or heart attack  \n [Exit]")
-
-
-# C) Cardiovascular risk
-C_vars = c(
-  "bp_cat_exit", 
-  "bmi_cat_exit", 
-  "a1c_cat_exit", 
-  "total_cholesterol_exit",
-  "who_cvd_risk_exit")
-C_var_labels = c(
-  "Blood pressure \n [Exit]",
-   "BMI (kg/m^2) \n [Exit]",
-   "Hemoglobin A1C (%) \n [Exit]",
-   "Total cholesterol (mg/dL) \n [Exit]",
-   "10-year CVD risk score \n [Exit]")
-
+# Vars to include
 table_vars <- data.frame(
   
   var_name = c(
     A_vars, 
     B_vars, 
     C_vars
-    ),
-
+  ),
+  
   var_label = c(A_var_labels, B_var_labels, C_var_labels)) %>% 
   
   mutate( 
@@ -139,10 +79,10 @@ table_vars <- data.frame(
       var_name %in% c(A_vars) ~ "A",
       var_name %in% c(B_vars) ~ "B",
       var_name %in% c(C_vars) ~ "C")
-    )
-  
-# Descriptive Proportion Table ----------------------------------------------------
+  )
 
+
+# Descriptive Proportion Table 
 col_headings_freq <- c(
   "Category",
   "Clinic follow-up \n n (%)", 
@@ -150,9 +90,7 @@ col_headings_freq <- c(
   "Women \n n (%)",
   "Men \n n (%)",
   "Total \n n (%)"
-  )
-
-#i = "A"
+)
 
 for (i in unique(headings$section)) {
   
@@ -167,8 +105,6 @@ for (i in unique(headings$section)) {
         Men = character(),
         Total = character()
     )
-  
- # v = "age_catR"
   
   for (v in unique(table_subset$var_name)) {
       
@@ -256,12 +192,10 @@ var_to_pull = "armRCommunity follow-up"
 ext = T 
 
 # POISSON 
-
 ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "poisson", ext = ext)
 ft
 
 # LINEAR 
-
 ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "gaussian", ext = ext)
 ft
 ```
@@ -275,6 +209,17 @@ ft
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
 df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_result))
+var_of_interest = "exit_viral_load_suppressed"
+var_to_pull = "exit_viral_load_suppressedTRUE"
+ext = T 
+
+# POISSON 
+ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "poisson", ext = ext)
+ft
+
+# LINEAR 
+ft <- get_regression_results(df = df, var_of_interest = var_of_interest, var_to_pull = var_to_pull, family = "gaussian", ext = ext)
+ft
 
 ```
 
@@ -287,8 +232,10 @@ df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_result))
 
 ```{r, echo = F, warning = F, message = F, ft.split = T, ft.keepnext = F, results = 'asis'}
 
-vs_subset <- ncd_merged_subset %>% 
-  filter(!is.na(exit_viral_load_result))
+df <- ncd_merged_subset %>% filter(!is.na(exit_viral_load_result))
+var_of_interest = "exit_viral_load_suppressed"
+var_to_pull = "exit_viral_load_suppressedTRUE"
+ext = T 
 
 # POISSON REGRESSIONS -------------------------------------------------------------
 
