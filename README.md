@@ -11,4 +11,4 @@ The work developed into a peer-reviewed article, published in *Journal of the In
 **Author team:** Maitreyi Sahu, Adam A. Szpiro, Heidi van Rooyen, Stephen Asiimwe, Maryam Shahmanesh, D. Allen Roberts, Meighan L. Krows, Kombi Sausi, Nsika Sithole, Torin Schaafsma, Jared M. Baeten, Adrienne E. Shapiro, Alastair van Heerden, Ruanne V. Barnabas 
 
 ## Acknowledgements
-We gratefully acknowledge the DO ART Study participants and research teams in KwaZulu-Natal, whose contributions were essential to this work.
+We gratefully acknowledge the DO ART Study participants and study team in KwaZulu-Natal, whose contributions were essential to this work.
