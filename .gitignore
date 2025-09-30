@@ -1,0 +1,12 @@
+# R
+*.Rhistory
+*.RData
+.Rproj.user/
+
+# Office docs and images
+*.docx
+*.png
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
